@@ -1,0 +1,20 @@
+#
+# prepare stuff for COVE
+#
+
+REQUIRED_PROGS+=( "${REQUIRED_PROGS_COVE[@]}" )
+
+if command -v curl 2>&1 >/dev/null; then
+    REQUIRED_PROGS+=( curl )
+else
+    REQUIRED_PROGS+=( wget )
+fi
+
+for executable in BackupFP ClientTool ProcessController; do
+    for required_library in $(RequiredSharedObjects "${COVE_INSTALL_DIR}/bin/${executable}"); do
+        IsInArray "$required_library" "${LIBS[@]}" && continue
+        LIBS+=( "$required_library" )
+    done
+done
+
+KERNEL_CMDLINE+=" ${COVE_KERNEL_CMDLINE} "
