@@ -8,13 +8,11 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No color
 
 # Required installation parameters
-COVE_INSTALLER_URL=""
-COVE_USER=""
-COVE_PASSWORD=""
-COVE_ENCRYPTION_KEY=""
+#COVE_INSTALLER_URL=""
+COVE_INSTALLATION_TOKEN=""
 
 COVE_CLIENT_TOOL="${COVE_INSTALL_DIR}/bin/ClientTool"
-COVE_INSTALLER_PATH="${TMPDIR:=/tmp}/mxb-linux.run"
+COVE_INSTALLER_PATH="${TMPDIR:=/tmp}/mxb-linux-x86_64.run"
 
 function cove_wait_for() {
     local condition="$1"
@@ -27,6 +25,7 @@ function cove_wait_for() {
     done
 }
 
+# Does not append a new line
 function cove_print() {
     { printf "$*" 1>&7 || true ; } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
 }
@@ -82,15 +81,19 @@ function cove_download_bm_installer() {
 }
 
 function cove_install_bm() {
-    if [ -z "${COVE_USER}" -o -z "${COVE_PASSWORD}" -o -z "${COVE_ENCRYPTION_KEY}" ]; then
+    if [ -z "${COVE_INSTALLATION_TOKEN}" ]; then
         UserOutput ""
-        UserOutput "Please provide the required installation parameters:"
-        {
-            [ -z "${COVE_USER}" ] && read -p "Device name: " COVE_USER
-            [ -z "${COVE_PASSWORD}" ] && { read -s -p "Password: " COVE_PASSWORD; echo; }
-            [ -z "${COVE_ENCRYPTION_KEY}" ] && { read -s -p "Encryption key: " COVE_ENCRYPTION_KEY; echo; }
-        } 0<&6 1>&7 2>&8
+        UserOutput "Please provide the required installation token:"
+        [ -z "${COVE_INSTALLATION_TOKEN}" ] \
+            && read -p "Installation token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
     fi
+
+    local installer_new="cove#v1#${COVE_INSTALLATION_TOKEN}#.run"
+    local new_install_path="$(dirname ${COVE_INSTALLER_PATH})/${installer_new}"
+
+    # Rename installer
+    mv "${COVE_INSTALLER_PATH}" "${new_install_path}"
+    COVE_INSTALLER_PATH="${new_install_path}"
 
     [ ! -x "${COVE_INSTALLER_PATH}" ] && chmod +x "${COVE_INSTALLER_PATH}" || true
 
@@ -104,11 +107,7 @@ function cove_install_bm() {
 
     UserOutput ""
     UserOutput "Installing Backup Manager..."
-    TMPDIR="${tmpdir}" "${COVE_INSTALLER_PATH}" -- \
-        --user="${COVE_USER}" \
-        --password="${COVE_PASSWORD}" \
-        --encryption-key="${COVE_ENCRYPTION_KEY}" \
-        0<&6 1>&7 2>&8
+    TMPDIR="${tmpdir}" "${COVE_INSTALLER_PATH}" 0<&6 1>&7 2>&8
     local retcode=$?
 
     [ "${unmount_tmpfs}" = "1" ] && umount ${tmpdir} || true
@@ -131,13 +130,7 @@ for option in $cmdline; do
             COVE_INSTALLER_URL="${option#cove_installer=}"
             ;;
         cove_user=*)
-            COVE_USER="${option#cove_user=}"
-            ;;
-        cove_password=*)
-            COVE_PASSWORD="${option#cove_password=}"
-            ;;
-        cove_encryption_key=*)
-            COVE_ENCRYPTION_KEY="${option#cove_encryption_key=}"
+            COVE_INSTALLATION_TOKEN="${option#cove_installation_token=}"
             ;;
     esac
 done
@@ -162,13 +155,13 @@ while true; do
     if cove_install_bm; then
         break
     else
-        PrintError "Failed to install the Backup Manage"
+        PrintError "Failed to install Backup Manager"
         if cove_ask "Want to try again?" "y"; then
-            cove_ask "Want to change the installation parameters?" "y" && {
-                COVE_USER=""; COVE_PASSWORD=""; COVE_ENCRYPTION_KEY=""; } || true
+            cove_ask "Want to change the installation parameters?" "y" && \
+                COVE_INSTALLATION_TOKEN="" || true
             continue
         else
-            Error "Failed to install the Backup Manager."
+            Error "Failed to install Backup Manager."
         fi
     fi
 done
@@ -184,7 +177,6 @@ while true; do
         control.restore.start
         -datasource FileSystem
         -restore-to $TARGET_FS_ROOT
-        -enable-tui
     )
     if TERM=linux "${COVE_CLIENT_TOOL}" "${restore_args[@]}" 0<&6 1>&7 2>&8; then
         clear 0<&6 1>&7 2>&8
