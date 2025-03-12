@@ -129,11 +129,20 @@ for option in $cmdline; do
         cove_installer=*)
             COVE_INSTALLER_URL="${option#cove_installer=}"
             ;;
-        cove_user=*)
-            COVE_INSTALLATION_TOKEN="${option#cove_installation_token=}"
+        cove_token=*)
+            COVE_INSTALLATION_TOKEN="${option#cove_token=}"
+            ;;
+        cove_timestamp=*)
+            COVE_TIMESTAMP="${option#cove_timestamp=}"
             ;;
     esac
 done
+
+if [ -z "${COVE_TIMESTAMP}" ]; then
+    if [ -e "${VAR_DIR}/recovery/cove_timestamp" ]; then
+        read -r COVE_TIMESTAMP < "${VAR_DIR}/recovery/cove_timestamp"
+    fi
+fi
 
 # Download Backup Manager installer
 while true; do
@@ -178,6 +187,7 @@ while true; do
         -datasource FileSystem
         -restore-to $TARGET_FS_ROOT
     )
+    [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
     if TERM=linux "${COVE_CLIENT_TOOL}" "${restore_args[@]}" 0<&6 1>&7 2>&8; then
         clear 0<&6 1>&7 2>&8
         break
