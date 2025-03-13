@@ -7,12 +7,13 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No color
 
-# Required installation parameters
-#COVE_INSTALLER_URL=""
 COVE_INSTALLATION_TOKEN=""
 
 COVE_CLIENT_TOOL="${COVE_INSTALL_DIR}/bin/ClientTool"
-COVE_INSTALLER_PATH="${TMPDIR:=/tmp}/mxb-linux-x86_64.run"
+
+COVE_TMPDIR="${TARGET_FS_ROOT}/covetmp-$(date +"%y%m%d%H%M%S")"
+
+COVE_INSTALLER_PATH="${COVE_TMPDIR}/mxb-linux-x86_64.run"
 
 function cove_wait_for() {
     local condition="$1"
@@ -83,9 +84,9 @@ function cove_download_bm_installer() {
 function cove_install_bm() {
     if [ -z "${COVE_INSTALLATION_TOKEN}" ]; then
         UserOutput ""
-        UserOutput "Please provide the required installation token:"
+        UserOutput "Please provide the installation token:"
         [ -z "${COVE_INSTALLATION_TOKEN}" ] \
-            && read -p "Installation token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
+            && read -p "Token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
     fi
 
     local installer_new="cove#v1#${COVE_INSTALLATION_TOKEN}#.run"
@@ -97,23 +98,13 @@ function cove_install_bm() {
 
     [ ! -x "${COVE_INSTALLER_PATH}" ] && chmod +x "${COVE_INSTALLER_PATH}" || true
 
-    local tmpdir=${TMPDIR:=/tmp}
-    local available_space="$(df -kP "${tmpdir}" | awk 'NR==2 {print $4}')"
-    if [ "${available_space}" = "0" ]; then
-        tmpdir="${COVE_INSTALL_DIR}/temp"
-        mkdir -p ${tmpdir} && local rm_tmpfs=1
-        mount -t tmpfs -o size=1G tmpfs ${tmpdir} && local unmount_tmpfs=1
-    fi
+    rm -rf "${COVE_INSTALL_DIR}/temp"
+    mkdir -p "${COVE_INSTALL_DIR}"
+    ln -s "${COVE_TMPDIR}" "${COVE_INSTALL_DIR}/temp"
 
     UserOutput ""
     UserOutput "Installing Backup Manager..."
-    TMPDIR="${tmpdir}" "${COVE_INSTALLER_PATH}" 0<&6 1>&7 2>&8
-    local retcode=$?
-
-    [ "${unmount_tmpfs}" = "1" ] && umount ${tmpdir} || true
-    [ "${rm_tmpfs}" = "1" ] && rm -rf ${tmpdir} || true
-
-    return $retcode
+    TMPDIR="${COVE_TMPDIR}" "${COVE_INSTALLER_PATH}" 0<&6 1>&7 2>&8
 }
 
 # Print the welcome message
@@ -143,6 +134,8 @@ if [ -z "${COVE_TIMESTAMP}" ]; then
         read -r COVE_TIMESTAMP < "${VAR_DIR}/recovery/cove_timestamp"
     fi
 fi
+
+mkdir -p "${COVE_TMPDIR}"
 
 # Download Backup Manager installer
 while true; do
@@ -189,7 +182,6 @@ while true; do
     )
     [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
     if TERM=linux "${COVE_CLIENT_TOOL}" "${restore_args[@]}" 0<&6 1>&7 2>&8; then
-        clear 0<&6 1>&7 2>&8
         break
     else
         PrintError "Failed to start the restore."
@@ -212,3 +204,6 @@ cat <<EOF >> "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR}/etc/config.ini"
 [General]
 ReadOnlyMode=1
 EOF
+
+# Clean up
+rm -rf "${COVE_TMPDIR}"
