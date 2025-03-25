@@ -43,15 +43,6 @@ if sysconfig_bootloader="$(get_sysconfig_bootloader)" \
     return
 fi
 
-# On ARM, guess the dummy bootloader:
-if [ "$ARCH" = "Linux-arm" ] ; then
-    BOOTLOADER=ARM
-    # Inform the user that we do nothing:
-    LogPrint "Using guessed bootloader 'ARM'. Skipping bootloader backup, see default.conf about 'BOOTLOADER'"
-    echo "$BOOTLOADER" >$bootloader_file
-    return
-fi
-
 # Check if any disk contains a PPC PReP boot partition.
 # Detection taken from usr/share/rear/finalize/Linux-ppc64/680_install_PPC_bootlist.sh
 disk_device="$( awk -F ' ' '/^part / {if ($6 ~ /prep/) {print $2}}' $LAYOUT_FILE )"
@@ -161,6 +152,15 @@ if is_true $USING_UEFI_BOOTLOADER ; then
         echo "EFI" >$bootloader_file
     fi
     return 0
+fi
+
+# On ARM, guess the dummy bootloader:
+if [ "$ARCH" = "Linux-arm" ] ; then
+    BOOTLOADER=ARM
+    # Inform the user that we do nothing:
+    LogPrint "Using guessed bootloader 'ARM'. Skipping bootloader backup, see default.conf about 'BOOTLOADER'"
+    echo "$BOOTLOADER" >$bootloader_file
+    return
 fi
 
 # Error out when no bootloader was specified or could be autodetected:
