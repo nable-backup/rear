@@ -3,19 +3,15 @@
 #
 
 # ANSI color escape sequences
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No color
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly NC='\033[0m' # No color
 
-COVE_INSTALLATION_TOKEN=""
-
-COVE_REAL_INSTALL_DIR=""
-
-COVE_CLIENT_TOOL="${COVE_INSTALL_DIR}/bin/ClientTool"
-
-COVE_TMPDIR="${TARGET_FS_ROOT}/covetmp-$(date +"%y%m%d%H%M%S")"
+readonly COVE_CLIENT_TOOL="${COVE_INSTALL_DIR}/bin/ClientTool"
+readonly COVE_TMPDIR="${TARGET_FS_ROOT}/covetmp-$(date +"%y%m%d%H%M%S")"
 
 COVE_INSTALLER_PATH="${COVE_TMPDIR}/mxb-linux-x86_64.run"
+COVE_INSTALLATION_TOKEN=""
 
 function cove_wait_for() {
     local condition="$1"
@@ -24,7 +20,7 @@ function cove_wait_for() {
         if eval "${condition}"; then
             break
         fi
-        sleep ${timeout};
+        sleep ${timeout}
     done
 }
 
@@ -91,7 +87,7 @@ function cove_create_symlink() {
     [ -h "${link_name}" ] && [ "$(readlink -f "${link_name}")" = "${target}" ] && return 0
 
     [ ! -e "${link_name}" ] || { \
-        LogPrint "'${link_name}' already exists. It will be removed."; rm -rf ${link_name}; }
+        PrintError "'${link_name}' already exists. It will be removed."; rm -rf ${link_name}; }
 
     # Create parents for the link
     mkdir -p "$(dirname "${link_name}")"
@@ -100,15 +96,51 @@ function cove_create_symlink() {
     mkdir -p "${target}"
 
     ln -s "${target}" "${link_name}" || { \
-        LogPrint "Failed to create '${link_name}' symlink to '${target}' target"; return 1; }
+        PrintError "Failed to create '${link_name}' symlink to '${target}' target"; return 1; }
+}
+
+function cove_try_overlayfs() {
+    # Exit if redirection via OverlayFS is turned off
+    [ "${COVE_TRY_OVERLAYFS}" = "1" ] || return 1
+
+    # Exit if the lower dir is already a merged view
+    [ "${COVE_OVERLAYFS_SUCCESS}" != "1" ] || return 0
+
+    local lower="$1"
+    local upper="$2"
+
+    # Create the lower dir if it doesn't exist.
+    # Remove the lower dir in case of errors because it will be a symlink
+    local rm_lower=0
+    [ -e "${lower}" ] || { mkdir -p "${lower}" && rm_lower=1; }
+
+    mkdir -p "${upper}"
+
+    local work="${COVE_TMPDIR}/work"
+    mkdir -p "${work}"
+
+    mount -t overlay overlay -o \
+        lowerdir="${lower}",upperdir="${upper}",workdir="${work}" \
+        "${lower}" || { rm -rf ${work}; [ "${rm_lower}" = "0" ] || rm -rf "${lower}"; return 1; }
+
+    readonly COVE_OVERLAYFS_SUCCESS=1
+}
+
+function cove_umount_overlayfs() {
+    local merged="$1"
+    # Try to unmount 10 times
+    for i in {1..10}; do
+        [ $i -eq 1 ] || sleep 3
+        umount "${merged}" && return 0 || continue
+    done
+    return 1
 }
 
 function cove_install_bm() {
     if [ -z "${COVE_INSTALLATION_TOKEN}" ]; then
         UserOutput ""
         UserOutput "Please provide the installation token:"
-        [ -z "${COVE_INSTALLATION_TOKEN}" ] \
-            && read -p "Token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
+        read -p "Token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
     fi
 
     local installer_new="cove#v1#${COVE_INSTALLATION_TOKEN}#.run"
@@ -122,29 +154,45 @@ function cove_install_bm() {
 
     local target_install_dir="${TARGET_FS_ROOT}/${COVE_REAL_INSTALL_DIR#/}"
 
-    # Create symlinks to redirect the installation to a disk
-    if [ "${COVE_INSTALL_DIR}" != "${COVE_REAL_INSTALL_DIR}" ]; then
-        local target="${target_install_dir}"
-        local link_name="${COVE_INSTALL_DIR}"
-        cove_create_symlink "${target}" "${link_name}" || return $?
-    else
-        cove_dirs=(bin etc lib rear sbin share var/log var/storage)
-        for cove_dir in "${cove_dirs[@]}"; do
-            local target="${target_install_dir}/${cove_dir}"
-            local link_name="${COVE_INSTALL_DIR}/${cove_dir}"
+    # First, try OverlayFS to redirect the installation to a disk
+    if ! cove_try_overlayfs "${COVE_INSTALL_DIR}" "${target_install_dir}"; then
+        # Create symlinks to redirect the installation to a disk
+        if [ "${COVE_INSTALL_DIR}" != "${COVE_REAL_INSTALL_DIR}" ]; then
+            local target="${target_install_dir}"
+            local link_name="${COVE_INSTALL_DIR}"
             cove_create_symlink "${target}" "${link_name}" || return $?
-        done
+        else
+            cove_dirs=(bin etc lib sbin share temp var/log var/storage)
+            for cove_dir in "${cove_dirs[@]}"; do
+                local target="${target_install_dir}/${cove_dir}"
+                local link_name="${COVE_INSTALL_DIR}/${cove_dir}"
+                cove_create_symlink "${target}" "${link_name}" || return $?
+            done
+        fi
     fi
-
-    # Workaround for BRMigrationTool that uses the temp dir as a target.
-    # It allows to pass the available disk space check for the target.
-    cove_create_symlink "${COVE_TMPDIR}" "${COVE_INSTALL_DIR}/temp"
 
     UserOutput ""
     UserOutput "Installing Backup Manager..."
-    { "${COVE_INSTALLER_PATH}" --target "${COVE_TMPDIR}" && tar \
-        -xf "${COVE_TMPDIR}/rear.tar.gz" --strip-components=1 \
-        -C "${target_install_dir}/rear"; } 1>&7 2>&8
+    "${COVE_INSTALLER_PATH}" --target "${COVE_TMPDIR}/mxb" 1>&7 2>&8 || return $?
+
+    # Extract the ReaR tarball because the installer does not do it in the rescue environment
+    mkdir -p "${target_install_dir}/rear"
+    tar -xf "${COVE_TMPDIR}/mxb/rear.tar.gz" --strip-components=1 -C "${target_install_dir}/rear"
+
+    # Try to copy site.conf if it does not exist at the target.
+    # It happens in case of symlinks used to redirect the installation.
+    [ -e "${target_install_dir}/rear/etc/rear/site.conf" ] \
+        || cp "${COVE_INSTALL_DIR}/rear/etc/rear/site.conf" "${target_install_dir}/rear/etc/rear/site.conf" \
+        || true
+}
+
+function cove_stop_pc() {
+    local pid="$(ps aux | awk -v pc_name=ProcessController '$0 ~ pc_name && !/awk/ {print $2}')"
+    [ -z "$pid" ] || { /bin/kill -TERM "${pid}" && \
+    while [ -n "$pid" ]; do \
+        sleep 1; \
+        pid="$(get_pc_pid)"; \
+    done }
 }
 
 # Print the welcome message
@@ -153,7 +201,8 @@ The System is now ready for restore. The Backup Manager installer will be
 downloaded and run automatically. If any required parameters have not been
 provided, you will be prompted to enter them."
 
-# Get required installation parameters from boot options
+# Read parameters from boot options. The existing values can be overwritten
+# by values passed via boot options.
 read -r cmdline </proc/cmdline
 for option in $cmdline; do
     case $option in
@@ -169,28 +218,17 @@ for option in $cmdline; do
     esac
 done
 
-if [ -z "${COVE_TIMESTAMP}" ]; then
-    if [ -e "${VAR_DIR}/recovery/cove_timestamp" ]; then
-        read -r COVE_TIMESTAMP < "${VAR_DIR}/recovery/cove_timestamp"
-    fi
-fi
-
-if [ -e "${VAR_DIR}/recovery/cove_install_dir" ]; then
-    read -r COVE_REAL_INSTALL_DIR < "${VAR_DIR}/recovery/cove_install_dir"
-else
-    COVE_REAL_INSTALL_DIR="${COVE_INSTALL_DIR}"
-fi
-
 mkdir -p "${COVE_TMPDIR}"
 
-# Download Backup Manager installer
+# Download the Backup Manager installer
 while true; do
     if cove_download_bm_installer; then
         break
     else
         PrintError "Failed to download the Backup Manager installer."
         if cove_ask "Want to try again?" "y"; then
-            cove_ask "Want to change the Backup Manager installer URL?" "y" && COVE_INSTALLER_URL="" || true
+            cove_ask "Want to change the Backup Manager installer URL?" "y" && \
+                COVE_INSTALLER_URL="" || true
             continue
         else
             Error "Failed to download the Backup Manager installer."
@@ -198,7 +236,7 @@ while true; do
     fi
 done
 
-# Install Backup manager installer
+# Install the Backup manager installer
 while true; do
     if cove_install_bm; then
         break
@@ -220,21 +258,27 @@ cove_wait_for 'local status="$(cove_get_status)"; [ "${status}" = "Idle" ]' 2 &&
     cove_print_done || { cove_print_error; Error "The Backup Manager couldn't enter the idle state."; }
 
 # Initiate the restore
-while true; do
-    restore_args=(
-        control.restore.start
-        -datasource FileSystem
-        -restore-to "${TARGET_FS_ROOT}"
-        -exclude "${COVE_REAL_INSTALL_DIR}"
-    )
-    [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
-    if TERM=linux "${COVE_CLIENT_TOOL}" "${restore_args[@]}" 0<&6 1>&7 2>&8; then
-        break
+restore_args=(
+    control.restore.start
+    -datasource FileSystem
+    -restore-to "${TARGET_FS_ROOT}"
+)
+[ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
+exclude_args=(-exclude "${COVE_REAL_INSTALL_DIR}")
+
+output="$("${COVE_CLIENT_TOOL}" "${restore_args[@]}" "${exclude_args[@]}" 2>&1 >/dev/null)"
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+    if echo "${output}" | grep -q "Deselection failed"; then
+        # Try without excludes
+        if ! "${COVE_CLIENT_TOOL}" "${restore_args[@]}" 2>&8; then
+            Error "Failed to start the restore."
+        fi
     else
-        PrintError "Failed to start the restore."
-        cove_ask "Want to try again?" "y" && continue || Error "Failed to start the restore."
+        Error "Failed to start the restore: ${output}"
     fi
-done
+fi
 
 # Wait for the restore to be started
 cove_print "Waiting for the restore to be started... "
@@ -246,8 +290,21 @@ cove_print "Waiting for the restore to be finished... "
 cove_wait_for 'local status="$(cove_get_status)"; [ "${status}" = "Idle" ]' 15 \
     && cove_print_done || { cove_print_error; Error "The restore has not finished."; }
 
-[ "${COVE_INSTALL_DIR}" = "${COVE_REAL_INSTALL_DIR}" ] || \
-    ln -s "${TARGET_FS_ROOT}/${COVE_REAL_INSTALL_DIR#/}" "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}"
+# Stop ProcessController process
+cove_stop_pc
+
+# Unmount OverlayFS
+if [ "${COVE_OVERLAYFS_SUCCESS}" = "1" ]; then
+    cove_print "Unmounting '${COVE_INSTALL_DIR}'... "
+    cove_umount_overlayfs "${COVE_INSTALL_DIR}" && cove_print_done || { cove_print_error; \
+        PrintError "Failed to unmount '${COVE_INSTALL_DIR}'. The Backup Manager might be broken on the recovered machine." ; }
+fi
+
+# Create symlink for the Backup Manager install dir if it's necessary
+if [ "${COVE_INSTALL_DIR}" != "${COVE_REAL_INSTALL_DIR}" -a ! -h "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}" ]; then
+    mkdir -p "$(dirname "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}")"
+    ln -s "${COVE_REAL_INSTALL_DIR}" "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}"
+fi
 
 # Clean up
 rm -rf "${COVE_TMPDIR}"

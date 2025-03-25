@@ -17,4 +17,4 @@ for executable in BackupFP ClientTool ProcessController; do
     done
 done
 
-KERNEL_CMDLINE+=" ${COVE_KERNEL_CMDLINE} "
+KERNEL_CMDLINE+=" ${KERNEL_CMDLINE_COVE} "
