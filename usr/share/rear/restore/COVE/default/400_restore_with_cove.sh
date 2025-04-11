@@ -30,7 +30,7 @@ function cove_wait_for() {
 # Prints a message without appending a newline
 # $@: message to print
 function cove_print() {
-    { printf "$*" 1>&7 || true ; } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
+    { printf "%s" "$*" 1>&7 || true ; } 2>>"/dev/$DISPENSABLE_OUTPUT_DEV"
 }
 
 # Prints "Done!" message
@@ -51,7 +51,7 @@ function cove_ask() {
     local default_value="${2}"
     local value=""
     while true; do
-        read -p "${message} (y/n) [${default_value}]: " value 0<&6 1>&7 2>&8
+        read -r -p "${message} (y/n) [${default_value}]: " value 0<&6 1>&7 2>&8
         value="${value:-$default_value}"
         case "$value" in
             [yY][eE][sS]|[yY])
@@ -77,12 +77,12 @@ function cove_download_bm_installer() {
     if [ -z "${COVE_INSTALLER_URL}" ]; then
         UserOutput ""
         UserOutput "Please provide the URL to download the Backup Manager installer:"
-        read -p "URL: " COVE_INSTALLER_URL 0<&6 1>&7 2>&8
+        read -r -p "URL: " COVE_INSTALLER_URL 0<&6 1>&7 2>&8
     fi
 
     UserOutput ""
     cove_print "Downloading Backup Manager installer... "
-    if command -v curl 2>&1 >/dev/null; then
+    if command -v curl >/dev/null 2>&1 ; then
         curl -fsSL "${COVE_INSTALLER_URL}" -o "${COVE_INSTALLER_PATH}" \
             && cove_print_done || { cove_print_error; return 1; }
     else
@@ -106,7 +106,7 @@ function cove_create_symlink() {
 
     # Remove existing file or directory at link location
     [ ! -e "${link_name}" ] || { \
-        PrintError "'${link_name}' already exists. It will be removed."; rm -rf ${link_name}; }
+        PrintError "'${link_name}' already exists. It will be removed."; rm -rf "${link_name}"; }
 
     # Create parent directories for the symlink if needed
     mkdir -p "$(dirname "${link_name}")"
@@ -148,7 +148,7 @@ function cove_try_overlayfs() {
     # Attempt to mount the overlay
     mount -t overlay overlay -o \
         lowerdir="${lower}",upperdir="${upper}",workdir="${work}" \
-        "${lower}" || { rm -rf ${work}; [ "${rm_lower}" = "0" ] || rm -rf "${lower}"; return 1; }
+        "${lower}" || { rm -rf "${work}"; [ "${rm_lower}" = "0" ] || rm -rf "${lower}"; return 1; }
 
     # Mark OverlayFS as successfully applied
     readonly COVE_OVERLAYFS_SUCCESS=1
@@ -160,7 +160,7 @@ function cove_umount_overlayfs() {
     local merged="$1"
     # Try to unmount 10 times
     for i in {1..10}; do
-        [ $i -eq 1 ] || sleep 3
+        [ "$i" -eq 1 ] || sleep 3
         umount "${merged}" && return 0 || continue
     done
     return 1
@@ -172,11 +172,11 @@ function cove_install_bm() {
     if [ -z "${COVE_INSTALLATION_TOKEN}" ]; then
         UserOutput ""
         UserOutput "Please provide the installation token:"
-        read -p "Token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
+        read -r -p "Token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
     fi
 
     local installer_new="cove#v1#${COVE_INSTALLATION_TOKEN}#.run"
-    local new_install_path="$(dirname ${COVE_INSTALLER_PATH})/${installer_new}"
+    local new_install_path="$(dirname "${COVE_INSTALLER_PATH}")/${installer_new}"
 
     # Rename the Backup Manager installer
     mv "${COVE_INSTALLER_PATH}" "${new_install_path}"

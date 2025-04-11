@@ -4,7 +4,7 @@
 
 REQUIRED_PROGS+=( "${REQUIRED_PROGS_COVE[@]}" )
 
-if command -v curl 2>&1 >/dev/null; then
+if command -v curl >/dev/null 2>&1 ; then
     REQUIRED_PROGS+=( curl )
 else
     REQUIRED_PROGS+=( wget )
