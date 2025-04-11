@@ -1,5 +1,5 @@
 #
-# prepare stuff for COVE
+# Prepare stuff for Cove
 #
 
 REQUIRED_PROGS+=( "${REQUIRED_PROGS_COVE[@]}" )

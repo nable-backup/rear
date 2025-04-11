@@ -1,6 +1,8 @@
+#
 # Store Cove variables for recovery:
-# - Real install directory to install the Backup Manager at the same place
-# - Timestamp to find the corresponding FileSystem backup session
+# - Real installation directory, to install the Backup Manager in the same place at recovery time
+# - Timestamp to find the corresponding Files and folders backup session
+#
 
 cat <<EOF >>"$ROOTFS_DIR/etc/rear/rescue.conf"
 
