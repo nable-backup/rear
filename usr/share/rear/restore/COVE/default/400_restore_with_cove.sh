@@ -47,8 +47,8 @@ function cove_print_error() {
 # $1: Prompt message to display
 # $2: Default value (y or n) if the user just presses Enter
 function cove_ask() {
-    local message="${1}"
-    local default_value="${2}"
+    local message="$1"
+    local default_value="$2"
     local value=""
     while true; do
         read -r -p "${message} (y/n) [${default_value}]: " value 0<&6 1>&7 2>&8
@@ -167,7 +167,7 @@ function cove_umount_overlayfs() {
 }
 
 # Installs the Backup Manager
-# The installation is redirected to a disk via OverlayFS it it's enabled, or via symlinks otherwise.
+# The installation is redirected to a disk via OverlayFS if it's enabled, or via symlinks otherwise.
 function cove_install_bm() {
     if [ -z "${COVE_INSTALLATION_TOKEN}" ]; then
         UserOutput ""
@@ -175,12 +175,12 @@ function cove_install_bm() {
         read -r -p "Token: " COVE_INSTALLATION_TOKEN 0<&6 1>&7 2>&8
     fi
 
-    local installer_new="cove#v1#${COVE_INSTALLATION_TOKEN}#.run"
-    local new_install_path="$(dirname "${COVE_INSTALLER_PATH}")/${installer_new}"
+    local new_installer="cove#v1#${COVE_INSTALLATION_TOKEN}#.run"
+    local new_installer_path="$(dirname "${COVE_INSTALLER_PATH}")/${new_installer}"
 
     # Rename the Backup Manager installer
-    mv "${COVE_INSTALLER_PATH}" "${new_install_path}"
-    COVE_INSTALLER_PATH="${new_install_path}"
+    mv "${COVE_INSTALLER_PATH}" "${new_installer_path}"
+    COVE_INSTALLER_PATH="${new_installer_path}"
 
     [ -x "${COVE_INSTALLER_PATH}" ] || chmod +x "${COVE_INSTALLER_PATH}"
 
