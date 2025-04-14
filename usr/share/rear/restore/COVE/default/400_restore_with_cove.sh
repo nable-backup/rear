@@ -295,22 +295,12 @@ restore_args=(
     control.restore.start
     -datasource FileSystem
     -restore-to "${TARGET_FS_ROOT}"
+    -exclude "${COVE_REAL_INSTALL_DIR}"
 )
 [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
-exclude_args=(-exclude "${COVE_REAL_INSTALL_DIR}")
 
-output="$("${COVE_CLIENT_TOOL}" "${restore_args[@]}" "${exclude_args[@]}" 2>&1 >/dev/null)"
-exit_code=$?
-
-if [ $exit_code -ne 0 ]; then
-    if echo "${output}" | grep -q "Deselection failed"; then
-        # Try without excludes
-        if ! "${COVE_CLIENT_TOOL}" "${restore_args[@]}" 2>&8; then
-            Error "Failed to start the restore."
-        fi
-    else
-        Error "Failed to start the restore: ${output}"
-    fi
+if ! "${COVE_CLIENT_TOOL}" "${restore_args[@]}"; then
+    Error "Failed to start the restore."
 fi
 
 # Wait for the restore to be started
