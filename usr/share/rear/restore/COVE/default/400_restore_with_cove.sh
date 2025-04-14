@@ -30,7 +30,7 @@ function cove_wait_for() {
 # Prints a message without appending a newline
 # $@: message to print
 function cove_print() {
-    { printf "%s" "$*" 1>&7 || true ; } 2>>"/dev/$DISPENSABLE_OUTPUT_DEV"
+    { printf "$*" 1>&7 || true ; } 2>>"/dev/$DISPENSABLE_OUTPUT_DEV"
 }
 
 # Prints "Done!" message
@@ -299,9 +299,8 @@ restore_args=(
 )
 [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
 
-if ! "${COVE_CLIENT_TOOL}" "${restore_args[@]}"; then
-    Error "Failed to start the restore."
-fi
+"${COVE_CLIENT_TOOL}" "${restore_args[@]}"
+StopIfError "Failed to start the restore."
 
 # Wait for the restore to be started
 cove_print "Waiting for the restore to be started... "
