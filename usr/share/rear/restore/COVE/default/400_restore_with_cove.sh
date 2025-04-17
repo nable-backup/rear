@@ -296,6 +296,7 @@ restore_args=(
     -datasource FileSystem
     -restore-to "${TARGET_FS_ROOT}"
     -exclude "${COVE_REAL_INSTALL_DIR}"
+    -session-search-policy OldestIfRequestedNotFound
 )
 [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
 
