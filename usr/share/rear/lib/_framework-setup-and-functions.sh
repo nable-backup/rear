@@ -321,6 +321,10 @@ function DoExitTasks () {
         Debug "Exit task '$exit_task'"
         eval "$exit_task"
     done
+
+    LogPrint "We would love to hear your feedback about Linux System State."
+    LogPrint "Your input helps us improve reliability, performance, and user experience."
+    LogPrint "Please share your thoughts here: https://me.n-able.com/s/support"
 }
 
 # The command (actually the function) DoExitTasks is executed on exit from the shell.
