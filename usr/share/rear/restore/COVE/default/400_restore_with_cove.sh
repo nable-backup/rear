@@ -8,6 +8,7 @@ readonly GREEN='\033[0;32m'
 readonly NC='\033[0m' # No color
 
 readonly COVE_CLIENT_TOOL="${COVE_INSTALL_DIR}/bin/ClientTool"
+readonly COVE_AUTH_TOOL_DIR="/root/.auth-tool"
 
 SKIP_PROGRESS_BAR=0
 
@@ -129,6 +130,13 @@ The System is now ready for restore."
 mkdir -p "$(dirname "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}")"
 mv "${COVE_INSTALL_DIR}" "$(dirname "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}")"
 ln -s "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}" "${COVE_INSTALL_DIR}"
+
+# Move mTLS credentials to target file system
+if [ -d "${COVE_AUTH_TOOL_DIR}" ]; then
+    mkdir -p "$(dirname "${TARGET_FS_ROOT}/${COVE_AUTH_TOOL_DIR#/}")"
+    mv "${COVE_AUTH_TOOL_DIR}" "$(dirname "${TARGET_FS_ROOT}/${COVE_AUTH_TOOL_DIR#/}")"
+    ln -s "${TARGET_FS_ROOT}/${COVE_AUTH_TOOL_DIR#/}" "${COVE_AUTH_TOOL_DIR}"
+fi
 
 # Start Backup Manager
 cove_start_pc
