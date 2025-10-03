@@ -9,6 +9,7 @@ readonly NC='\033[0m' # No color
 
 readonly COVE_CLIENT_TOOL="${COVE_INSTALL_DIR}/bin/ClientTool"
 readonly COVE_AUTH_TOOL_DIR="/root/.auth-tool"
+readonly COVE_VANILLA_BRANDING_FILE="/etc/MXB/Backup.Branding.config"
 
 SKIP_PROGRESS_BAR=0
 
@@ -103,30 +104,34 @@ function cove_get_filesystem_restore_sessions() {
         | awk '$1 == "FileSystem" && $2 == "Restore"'
 }
 
-# Moves a directory to target file system and creates a symbolic link back to it
-# $1: source directory path
-function cove_move_dir_to_target() {
-    local source_dir="$1"
+# Moves a file or directory to target file system and creates a symbolic link back to it
+# $1: source path (file or directory)
+function cove_move_to_target() {
+    local source_path="$1"
 
-    if [ ! -d "${source_dir}" ]; then
+    if [ ! -e "${source_path}" ]; then
         return 0
     fi
 
-    local target_parent_dir
-    target_parent_dir="$(dirname "${TARGET_FS_ROOT}/${source_dir#/}")"
+    local target_path="${TARGET_FS_ROOT}/${source_path#/}"
+    local target_parent_dir="$(dirname "${target_path}")"
 
     mkdir -p "${target_parent_dir}"
-    mv "${source_dir}" "${target_parent_dir}"
-    ln -s "${TARGET_FS_ROOT}/${source_dir#/}" "${source_dir}"
+
+    mv "${source_path}" "${target_parent_dir}/"
+    ln -s "${target_path}" "${source_path}"
 }
 
 # Moves Cove installation files and credentials to target file system
 function cove_move_files_to_target() {
     # Move Backup manager installation files to target file system
-    cove_move_dir_to_target "${COVE_INSTALL_DIR}"
+    cove_move_to_target "${COVE_INSTALL_DIR}"
 
     # Move mTLS credentials to target file system
-    cove_move_dir_to_target "${COVE_AUTH_TOOL_DIR}"
+    cove_move_to_target "${COVE_AUTH_TOOL_DIR}"
+
+    # Move vanilla branding file to target file system
+    cove_move_to_target "${COVE_VANILLA_BRANDING_FILE}"
 }
 
 # Waits for a new FileSystem restore session and gets its status
@@ -169,6 +174,8 @@ restore_args=(
     -datasource FileSystem
     -restore-to "${TARGET_FS_ROOT}"
     -exclude "${COVE_REAL_INSTALL_DIR}"
+    -exclude "${COVE_AUTH_TOOL_DIR}"
+    -exclude "${COVE_VANILLA_BRANDING_FILE}"
     -session-search-policy OldestIfRequestedNotFound
 )
 [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
