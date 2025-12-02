@@ -37,12 +37,7 @@ else
 			git_branch_suffix = $(shell git symbolic-ref HEAD | sed -e 's,^.*/,,' -e "s/[^A-Za-z0-9]//g")
 			release_suffix = $(shell git symbolic-ref HEAD | sed -nE 's/^.*?release\/([0-9.-]*-cove).*/\1/p')
 			ifneq ($(release_suffix),)
-				release_tag = $(shell git tag --points-at HEAD)
-				ifneq ($(release_tag),)
-					release_suffix = $(release_tag)
-				else
-					git_branch_suffix = $(release_suffix)
-				endif
+				git_branch_suffix = $(release_suffix)
 			endif
 			feature_suffix = $(shell git symbolic-ref HEAD | sed -nE 's/^.*?(feature|hotfix)\/([A-Za-z0-9_-]+-[0-9]+).*/\2/p')
 			ifneq ($(feature_suffix),)
@@ -66,7 +61,7 @@ else
     ifneq ($(release_suffix),)
         distversion = $(release_suffix)$(changed_suffix)
     else # is not release version
-        distversion = $(version).$(git_stamp)$(changed_suffix)
+        distversion = $(version)-$(git_stamp)$(changed_suffix)
     endif # is release version
     debrelease = 0git.$(git_stamp)$(changed_suffix)
     rpmrelease = .git.$(git_stamp)$(changed_suffix)
