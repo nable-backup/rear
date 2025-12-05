@@ -1,6 +1,6 @@
 # Relax-and-Recover Linux Disaster Recovery &amp; Bare Metal Restore
 
-Relax-and-Recover (abbreviated ReaR) is the de facto standard disaster recovery framework on Linux.
+Relax-and-Recover(abbreviated ReaR) is the de facto standard disaster recovery framework on Linux.
 
 It is in particular used on enterprise Linux distributions like Red Hat Enterprise Linux (RHEL)
 and SUSE Linux Enterprise Server (SLES).
@@ -17,7 +17,7 @@ System administrators use the ReaR framework to set up a disaster recovery proce
 as part of their disaster recovery policy (which complements their existing backup policy).
 
 ReaR complements backup and restore of data with bare metal disaster recovery. ReaR can also act as local backup software,
-but ReaR is not a a backup management software. In many enterprise environmentments, data backup and restore happens via dedicated backup software which is integrated by ReaR and used to restore the data onto a replacement system as part of the automated disaster recovery procedure implemented by ReaR.
+but ReaR is not a a backup management software. In many enterprise environmentments, data backup and restore happens via dedicated backup software which is integrated by ReaR and used to  restore the data onto a replacement system as part of the automated disaster recovery procedure implemented by ReaR.
 
 ReaR has support for built-in backup methods using 'tar' and 'rsync' that are used for backup and restore.
 
