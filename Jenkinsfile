@@ -50,6 +50,10 @@ pipeline {
         ansiColor('xterm')
     }
 
+    parameters {
+        string(name: 'DUMMY', defaultValue: '', description: 'Dummy parameter it should make "Build with Parameters" button visible.')
+    }
+
     stages {
         stage('Prepare') {
             steps {
