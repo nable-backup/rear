@@ -148,12 +148,56 @@ function cove_wait_for_new_session() {
     echo "$status"
 }
 
+# Enables or disables debug and protocol logs for Cove operations
+# $1: action ("enable" or "disable")
+function cove_toggle_debug_logs() {
+    local action="$1"
+    local config_file="${COVE_INSTALL_DIR}/etc/config.ini"
+    local logs_dir="${COVE_INSTALL_DIR}/var/logs"
+
+    if [ "${action}" = "enable" ]; then
+        LogPrint "Enabling debug and protocol logs... "
+        local log_level="Debug"
+    else
+        LogPrint "Disabling debug and protocol logs... "
+        local log_level="Warning"
+    fi
+
+    if grep -q "^\[Logging\]" "${config_file}"; then
+        sed -i "/^\[Logging\]/,/^\[/ s/^LoggingLevel=.*/LoggingLevel=${log_level}/" "${config_file}"
+        grep -A 10 "^\[Logging\]" "${config_file}" | grep -q "^LoggingLevel=" || \
+            sed -i "/^\[Logging\]/a LoggingLevel=${log_level}" "${config_file}"
+    else
+        echo -e "\n[Logging]\nLoggingLevel=${log_level}" >> "${config_file}"
+    fi
+
+    if [ "${action}" = "enable" ]; then
+        for log_folder in "${logs_dir}"/*; do
+            case "${log_folder}" in
+                *.Protocol|*-Protocol) continue ;;
+            esac
+            local protocol_folder="${log_folder}.Protocol"
+            mkdir -p "${protocol_folder}"
+        done
+    else
+        for protocol_folder in "${logs_dir}"/*.Protocol; do
+            local disabled_folder="${protocol_folder%.Protocol}-Protocol"
+            mv "${protocol_folder}" "${disabled_folder}"
+        done
+    fi
+}
+
 # Print the welcome message
 UserOutput "
 The System is now ready for restore."
 
 # Move Backup manager installation files and credentials to target file system
 cove_move_files_to_target
+
+# Enable debug and protocol logging
+if test "$DEBUG" ; then
+    cove_toggle_debug_logs "enable"
+fi
 
 # Start Backup Manager
 cove_start_pc
@@ -290,6 +334,11 @@ fi
 
 # Stop ProcessController process
 cove_stop_pc
+
+# Disable debug and protocol logging
+if test "$DEBUG" ; then
+    cove_toggle_debug_logs "disable"
+fi
 
 # Create symlink for the Backup Manager install dir if it's necessary
 if [ "${COVE_INSTALL_DIR}" != "${COVE_REAL_INSTALL_DIR}" -a ! -h "${TARGET_FS_ROOT}/${COVE_INSTALL_DIR#/}" ]; then
