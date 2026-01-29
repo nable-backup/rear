@@ -46,7 +46,7 @@ echo "$INITRD_MODULES" >$TARGET_FS_ROOT/etc/initramfs-tools/modules
 
 # Handle mdadm.conf Debian style:
 if [ -r /proc/mdstat -a -r $TARGET_FS_ROOT/etc/mdadm/mdadm.conf -a -x $TARGET_FS_ROOT/usr/share/mdadm/mkconf ] ; then
-    if chroot $TARGET_FS_ROOT /bin/bash --login -c "/usr/share/mdadm/mkconf >/etc/mdadm/mdadm.conf" ; then
+    if run_in_chroot "/usr/share/mdadm/mkconf >/etc/mdadm/mdadm.conf" ; then
         LogPrint "Updated '/etc/mdadm/mdadm.conf' before recreating initramfs"
     else
         LogPrint "WARNING:

@@ -32,7 +32,7 @@ set -e -u -o pipefail
 # the commands inside 'chroot' as one would type them in a normal working shell.
 # In particular one can call programs (like 'passwd') by their basename without path
 # cf. https://github.com/rear/rear/issues/862#issuecomment-274068914
-{ chroot $TARGET_FS_ROOT /bin/bash --login -c "echo -e '$root_password\n$root_password' | passwd root" ; } 2>>/dev/$SECRET_OUTPUT_DEV
+{ run_in_chroot "echo -e '$root_password\n$root_password' | passwd root" ; } 2>>/dev/$SECRET_OUTPUT_DEV
 
 # Restore the ReaR default bash flags and options (see usr/sbin/rear):
 apply_bash_flags_and_options_commands "$DEFAULT_BASH_FLAGS_AND_OPTIONS_COMMANDS"

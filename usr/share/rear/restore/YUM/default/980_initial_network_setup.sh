@@ -36,14 +36,14 @@ for network_setup_command in "${YUM_NETWORK_SETUP_COMMANDS[@]}" ; do
             # plus automated response to all requested user input via yes '' (i.e. only plain [Enter] as user input)
             # and ignore non zero exit codes from YaST to avoid that "rear recover" aborts here:
             LogPrint "Initial network setup in the target system via 'yast2 --ncurses lan add name=eth0 ethdevice=eth0 bootproto=dhcp'"
-            chroot $TARGET_FS_ROOT /bin/bash --login -c "yes '' | TERM=dumb yast2 --ncurses lan add name=eth0 ethdevice=eth0 bootproto=dhcp" || true
+            run_in_chroot "yes '' | TERM=dumb yast2 --ncurses lan add name=eth0 ethdevice=eth0 bootproto=dhcp" || true
             ;;
         (NETWORKING_PREPARATION_COMMANDS)
             LogPrint "Initial network setup in the target system as specified in NETWORKING_PREPARATION_COMMANDS"
             for networking_preparation_command in "${NETWORKING_PREPARATION_COMMANDS[@]}" ; do
                 if test "$networking_preparation_command" ; then
                     # Only report errors to avoid that "rear recover" aborts here:
-                    chroot $TARGET_FS_ROOT /bin/bash --login -c "$networking_preparation_command" || LogPrint "Command failed: $networking_preparation_command"
+                    run_in_chroot "$networking_preparation_command" || LogPrint "Command failed: $networking_preparation_command"
                 fi
             done
             ;;
@@ -51,7 +51,7 @@ for network_setup_command in "${YUM_NETWORK_SETUP_COMMANDS[@]}" ; do
             if test "$network_setup_command" ; then
                 LogPrint "Initial network setup in the target system via $network_setup_command"
                 # Only report errors to avoid that "rear recover" aborts here:
-                chroot $TARGET_FS_ROOT /bin/bash --login -c "$network_setup_command" || LogPrint "Command failed: $network_setup_command"
+                run_in_chroot "$network_setup_command" || LogPrint "Command failed: $network_setup_command"
             fi
             ;;
     esac

@@ -34,7 +34,7 @@ mount -o bind /dev $TARGET_FS_ROOT/dev || true
 # A login shell in between is needed when shell scripts are called insinde 'chroot'
 # cf. https://github.com/rear/rear/issues/862#issuecomment-282039428
 # In particular grub2-mkconfig is a shell script that calls other shell scripts:
-chroot $TARGET_FS_ROOT /bin/bash --login -c '/usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg'
+run_in_chroot '/usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg'
 
 # FIXME: This should not be needed here but work via finalize/Linux-i386/660_install_grub2.sh
 # Install bootloader in the target system:

@@ -86,7 +86,7 @@ fi
 
 # Generate GRUB configuration file anew to be on the safe side (this could be even mandatory in MIGRATION_MODE):
 local grub2_config_generated="yes"
-if ! chroot $TARGET_FS_ROOT /bin/bash --login -c "$grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
+if ! run_in_chroot "$grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
     grub2_config_generated="no"
     # TODO: We should make this fatal.  Outdated/incomplete/just wrong grub2.cfg may result into an unbootable system.
     LogPrintError "Failed to generate boot/$grub_name/grub.cfg in $TARGET_FS_ROOT - trying to install GRUB2 nevertheless"
@@ -159,7 +159,7 @@ if test "$GRUB2_INSTALL_DEVICES" ; then
         else
             LogPrint "Installing GRUB2 on $grub2_install_device (specified in GRUB2_INSTALL_DEVICES)"
         fi
-        if ! chroot $TARGET_FS_ROOT /bin/bash --login -c "$grub_name-install $grub2_no_nvram_option $grub2_install_device" ; then
+        if ! run_in_chroot "$grub_name-install $grub2_no_nvram_option $grub2_install_device" ; then
             LogPrintError "Failed to install GRUB2 on $grub2_install_device"
             grub2_install_failed="yes"
         fi
@@ -210,7 +210,7 @@ for part in $part_list ; do
         # Zero out the PPC PReP boot partition
         # cf. https://github.com/rear/rear/pull/673
         dd if=/dev/zero of=$part
-        if chroot $TARGET_FS_ROOT /bin/bash --login -c "$grub_name-install $grub2_no_nvram_option $part" ; then
+        if run_in_chroot "$grub_name-install $grub2_no_nvram_option $part" ; then
             # In contrast to the above behaviour when GRUB2_INSTALL_DEVICES is specified
             # consider it here as a successful bootloader installation when GRUB2
             # got installed on at least one PPC PReP boot partition:
