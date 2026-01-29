@@ -263,7 +263,7 @@ function run_in_chroot() {
         chroot "$TARGET_FS_ROOT" /bin/bash --login -c true 0<&6 &
         local pid=$!
 
-        for _ in {1..5}; do
+        for _ in {1..10}; do
             sleep 0.5
             if ! kill -0 "$pid" 2>/dev/null; then
                 if wait "$pid"; then
@@ -280,6 +280,7 @@ function run_in_chroot() {
         # called inside /root/.profile, need to kill the process
         if [ -z "$USE_NOPROFILE_FOR_LOGIN_SHELL" ]; then
             kill -9 "$pid"
+            wait "$pid"
             USE_NOPROFILE_FOR_LOGIN_SHELL=1
         fi
 
