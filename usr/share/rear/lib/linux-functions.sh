@@ -255,6 +255,9 @@ function filesystem_name () {
     fi
 }
 
+# Run the given command as 'chroot $TARGET_FS_ROOT /bin/bash --login -c <cmd>'.
+# Detect whether the login shell can be used as is or the --noprofile option
+# is required.
 function run_in_chroot() {
     if [ -z "$USE_NOPROFILE_FOR_LOGIN_SHELL" ]; then
         chroot "$TARGET_FS_ROOT" /bin/bash --login -c true 0<&6 &
