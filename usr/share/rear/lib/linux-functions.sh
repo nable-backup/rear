@@ -273,7 +273,7 @@ function run_in_chroot() {
             fi
         done
 
-        # If login shell is blocked for 5 secs, e.g., because /bin/bash is
+        # If login shell is blocked, e.g., because /bin/bash is
         # called inside /root/.profile, need to kill the process
         if [ -z "$USE_NOPROFILE_FOR_LOGIN_SHELL" ]; then
             kill -9 "$pid"
