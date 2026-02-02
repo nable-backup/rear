@@ -398,6 +398,11 @@ function UserOutput () {
     { echo "$*" 1>&7 || true ; } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
 }
 
+# For cove warn messages
+function PrintWarn() {
+    { echo "$*" 1>&8 || true ; } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
+}
+
 # For actually intended user error messages output to the original STDERR
 # regardless whether or not the user launched 'rear' in verbose mode:
 function PrintError () {
@@ -507,6 +512,13 @@ function DebugPrint () {
 function LogPrint () {
     { Log "$@"
       Print "$@"
+    } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
+}
+
+# For cove warning messages
+function WarnPrint() {
+    { Log "$@"
+      PrintWarn "$@"
     } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
 }
 
