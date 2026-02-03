@@ -43,7 +43,7 @@ type -p grub-probe || type -p grub2-probe || return 0
 
 LogPrint "Installing GRUB2 boot loader plus ZIPL..."
 
-chroot $TARGET_FS_ROOT /bin/bash --login -c "update-bootloader --reinit" && NOBOOTLOADER=''
+run_in_chroot "update-bootloader --reinit" && NOBOOTLOADER=''
 
 is_true $NOBOOTLOADER || return 0
 LogPrintError "Failed to install GRUB2 plus ZIPL - you may have to manually install it"

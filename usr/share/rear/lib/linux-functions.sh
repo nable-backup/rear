@@ -255,3 +255,52 @@ function filesystem_name () {
     fi
 }
 
+# Run the given command as 'chroot $TARGET_FS_ROOT /bin/bash --login -c <cmd>'.
+# Detect whether the login shell can be used as is or the --noprofile option
+# is required.
+function run_in_chroot() {
+    if [ -z "$USE_NOPROFILE_FOR_LOGIN_SHELL" ]; then
+        chroot "$TARGET_FS_ROOT" /bin/bash --login -c true 0<&6 &
+        local pid=$!
+
+        for _ in {1..10}; do
+            sleep 0.5
+            if ! kill -0 "$pid" 2>/dev/null; then
+                if wait "$pid"; then
+                    USE_NOPROFILE_FOR_LOGIN_SHELL=0
+                    LogPrint "The login shell works without any issues."
+                else
+                    USE_NOPROFILE_FOR_LOGIN_SHELL=1
+                fi
+                break
+            fi
+        done
+
+        # If login shell is blocked, e.g., because /bin/bash is
+        # called inside /root/.profile, need to kill the process
+        if [ -z "$USE_NOPROFILE_FOR_LOGIN_SHELL" ]; then
+            kill -9 "$pid"
+            wait "$pid"
+            USE_NOPROFILE_FOR_LOGIN_SHELL=1
+        fi
+
+        if [ "$USE_NOPROFILE_FOR_LOGIN_SHELL" = "1" ]; then
+            if ! chroot "$TARGET_FS_ROOT" /bin/bash --login --noprofile -c true; then
+                LogPrintError "Cannot chroot into '$TARGET_FS_ROOT'."
+                LogPrintError "The restored file system might be broken."
+            else
+                LogPrintError "Cannot use the login shell inside the restored file system."
+                LogPrintError "The login shell will be used with the '--noprofile' option."
+            fi
+        fi
+    fi
+
+    local command="$1"
+
+    local noprofile=""
+    if [ "$USE_NOPROFILE_FOR_LOGIN_SHELL" = "1" ]; then
+        noprofile="--noprofile"
+    fi
+
+    chroot "$TARGET_FS_ROOT" /bin/bash --login $noprofile -c "$command"
+}
