@@ -1,6 +1,6 @@
 # Save a hash of files that would warrant a new rescue image when changed.
 
-# shellcheck disable=SC2168 disable=SC2207
+# shellcheck disable=SC2168,SC2207
 
 if [ "$WORKFLOW" = "checklayout" ] ; then
     return 0
@@ -33,7 +33,7 @@ if [ "$WORKFLOW" = "mksystemstate" ] && is_true "$COVE_VERIFY_BINARIES" ; then
 
     # See finalize/COVE/Debian/620_upgrade_bootloaders.sh to find out when
     # signed binaries are copied from the Cove Rescue Media to the target fs
-    # on systems running Debian 10. The logic is simplied because UEFI_BOOTLOADER
+    # on systems running Debian 10. The logic is simplified because UEFI_BOOTLOADER
     # path is unknown by this time.
     if [ "$OS_VENDOR_VERSION" = "Debian/10" ] && is_true "$USING_UEFI_BOOTLOADER"; then
         local exclusions=(

@@ -28,7 +28,7 @@ function verify_checksums() {
 
         # Skip when there are no checksums for this file
         if ! test -s "$path"; then
-            LogUserOutput "Warning: '$path' not found. It will be skipped."
+            LogUserOutput "Warning: '$path' not found. Skipped."
             continue
         fi
 
@@ -41,15 +41,15 @@ function verify_checksums() {
             LogUserOutput "Verification failed: checksums do not match for file(s) in '$md5sum_file'."
             all_pass=0
         else
-            LogUserOutput "Verification passed: all checksums match in '$md5sum_file'."
+            LogUserOutput "Verification passed: checksums match in '$md5sum_file'."
         fi
     done
 
     if [ $all_pass -eq 1 ]; then
         LogUserOutput ""
-        LogUserOutput "Verification passed: all checksums match successfully."
+        LogUserOutput "Verification passed: all checksums match."
     else
-        Error "Verification failed: computed checksum did NOT match."
+        Error "Verification failed: checksums did NOT match."
     fi
 }
 
