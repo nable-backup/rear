@@ -3,20 +3,20 @@
 function verify_checksums() {
     local md5sum_files=()
 
-    case "$COVE_INTEGRITY_CHECK" in
+    case "$COVE_CHECK_INTEGRITY" in
         all)
             md5sum_files+=(files.md5sum cove-files.md5sum)
             ;;
         *binaries*)
             md5sum_files+=(cove-files.md5sum)
-            ;;
+            ;;&
         *configs*)
             md5sum_files+=(files.md5sum)
             ;;
     esac
 
     if [ ${#md5sum_files[@]} -eq 0 ]; then
-        LogUserOutput "Nothing to check. See COVE_INTEGRITY_CHECK in 'default.conf'."
+        LogUserOutput "Nothing to check. See COVE_CHECK_INTEGRITY in 'default.conf'."
         return 0
     fi
 
