@@ -41,6 +41,6 @@ case $used_bootloader in
         CHECK_CONFIG_FILES+=( /[e]tc/zipl.conf )
         ;;
     (*)
-        BugError "Unknown bootloader ($used_bootloader) - ask for sponsoring to get this fixed"
+        BugError "Unknown bootloader: $used_bootloader"
         ;;
 esac
