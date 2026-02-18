@@ -41,7 +41,6 @@ fi
 my_udevtrigger
 sleep 5
 
-
 # Run 'sdbootutil mkinitrd' to regenerate the initrd on systems that use GRUB2-BLS.
 # sdbootutil runs dracut under the hood and creates a new bootloader entry that 
 # points to the generated initrd.
@@ -52,20 +51,10 @@ if [ "$BOOTLOADER" = "GRUB2-BLS" ]; then
         if chroot "$TARGET_FS_ROOT" /bin/bash -c "PATH=/sbin:/usr/sbin:/usr/bin:/bin $sdbootutil_binary mkinitrd" ; then
             LogPrint "Recreated initrd and boot entry with $sdbootutil_binary"
         else
-            LogPrintError "Warning:
-Failed to recreate initrd and boot entry with $sdbootutil_binary.
-Check '$RUNTIME_LOGFILE' why $sdbootutil_binary failed
-and decide if the recreated system will boot
-with the initrd 'as is' from the backup restore.
-"
+            WarnPrint "WARN: Failed to recreate initrd and boot entry with $sdbootutil_binary"
         fi
     else
-    LogPrintError "Warning:
-Cannot recreate initrd bootloader entry (sdbootutil not found in the recreated system).
-Check the recreated system (mounted at $TARGET_FS_ROOT)
-and decide if the recreated system will boot
-with the initrd 'as is' from the backup restore.
-"
+        WarnPrint "WARN: Cannot recreate initrd bootloader entry: sdbootutil not found in the recreated system"
     fi
 
     return 0
