@@ -1,6 +1,8 @@
 
 # Rebuild the initrd:
 
+# shellcheck disable=SC2168
+
 # Skip if it is explicitly wanted to not rebuild the initrd:
 if is_false $REBUILD_INITRAMFS ; then
     Log "Skip recreating initrd (REBUILD_INITRAMFS is false)"
@@ -38,6 +40,25 @@ fi
 
 my_udevtrigger
 sleep 5
+
+# Run 'sdbootutil mkinitrd' to regenerate the initrd on systems that use GRUB2-BLS.
+# sdbootutil runs dracut under the hood and creates a new bootloader entry that 
+# points to the generated initrd.
+if [ "$BOOTLOADER" = "GRUB2-BLS" ]; then
+    local sdbootutil_binary
+    sdbootutil_binary=$( chroot "$TARGET_FS_ROOT" /bin/bash -c 'PATH=/sbin:/usr/sbin:/usr/bin:/bin type -P sdbootutil' )
+    if test "$sdbootutil_binary" ; then
+        if chroot "$TARGET_FS_ROOT" /bin/bash -c "PATH=/sbin:/usr/sbin:/usr/bin:/bin $sdbootutil_binary mkinitrd" ; then
+            LogPrint "Recreated initrd and boot entry with $sdbootutil_binary"
+        else
+            WarnPrint "WARN: Failed to recreate initrd and boot entry with $sdbootutil_binary"
+        fi
+    else
+        WarnPrint "WARN: Cannot recreate initrd bootloader entry: sdbootutil not found in the recreated system"
+    fi
+
+    return 0
+fi
 
 # Run dracut directly in chroot without a login shell in between (see https://github.com/rear/rear/issues/862).
 # We need the dracut binary in the chroot environment i.e. the dracut binary in the recreated system.
