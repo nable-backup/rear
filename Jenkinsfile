@@ -11,8 +11,8 @@ final String envType = isProd ? 'prd' : 'dev'
 def String repositoryName = 'rear'
 
 def config = [
-    cloud: "backup-${envType}",
-    serviceAccount: "backup",
+    cloud: envType == 'prd' ? 'cove-agent-prd' : "backup-${envType}",
+    serviceAccount: envType == 'prd' ? 'ecr' : 'backup',
     buildImage: "${nsbuild.ecrHost()}/cove/onprem/develop/rear-builder:v1.7"
 ]
 
