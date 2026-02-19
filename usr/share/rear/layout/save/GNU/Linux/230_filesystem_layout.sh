@@ -406,7 +406,7 @@ fi
                         fi
                     fi
 
-                    PROGS+=( /usr/lib/snapper/installation-helper )
+                    REQUIRED_PROGS+=( /usr/lib/snapper/installation-helper )
                     COPY_AS_IS+=(
                         /etc/snapper/config-templates/default
                         # On SLE16 the /etc/snapper/config-templates/default location was changed
