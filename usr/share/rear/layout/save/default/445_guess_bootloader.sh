@@ -140,9 +140,9 @@ fi
 # No bootloader detected, but we are using UEFI - there is probably an EFI bootloader
 if is_true $USING_UEFI_BOOTLOADER ; then
     if is_grub2_installed ; then
-        # /etc/sysconfig/bootloader is likely missing which might contain
-        # LOADER_TYPE="grub2-bls".
-        # Check whether GRUB2 with BLS is being used.
+        # /etc/sysconfig/bootloader, which might contain LOADER_TYPE="grub2-bls",
+        # is likely missing. Therefore, check whether GRUB2 with BLS is being
+        # used by analyzing grub.cfg.
         if is_grub2_bls_in_use ; then
             echo "GRUB2-BLS" >"$bootloader_file"
         else
