@@ -24,7 +24,7 @@ while read source target junk ; do
     # LAYOUT_XFS_OPT_DIR_RESTORE.
     if [ -e "$LAYOUT_XFS_OPT_DIR/$base_source.xfs" ]; then
         Log "Migrating XFS configuration file $base_source.xfs to $base_target.xfs"
-        cp "$v" "$LAYOUT_XFS_OPT_DIR/$base_source.xfs" \
+        cp $v "$LAYOUT_XFS_OPT_DIR/$base_source.xfs" \
          "$LAYOUT_XFS_OPT_DIR_RESTORE/$base_target.xfs"
 
         # Replace old device name in meta-data= option in XFS
