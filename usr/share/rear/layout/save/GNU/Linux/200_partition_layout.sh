@@ -524,7 +524,8 @@ Log "Saving disks and their partitions"
 grep -Eq '^disk |^part ' $DISKLAYOUT_FILE && REQUIRED_PROGS+=( parted partprobe ) || true
 
 # sgdisk is required if PARTUUIDs must be preserved
-if partuuid_restoration_is_required; then
+# Cove Rescue Media must always have it
+if ! is_cove && partuuid_restoration_is_required; then
     REQUIRED_PROGS+=( sgdisk )
 else
     PROGS+=( sgdisk )

@@ -55,7 +55,11 @@ while read keyword disk_dev disk_size parted_mklabel junk ; do
         test -b "$part_dev" || broken_part_errors+=( "$part_dev is not a block device" )
         is_positive_integer $part_size || broken_part_errors+=( "$part_dev size $part_size is not a positive integer" )
         is_nonnegative_integer $part_start || broken_part_errors+=( "$part_dev start $part_start is not a nonnegative integer" )
-        [[ $partuuid =~ ^$PARTUUID_REGEX$ ]] || broken_part_errors+=( "$partuuid is an unexpected PARTUUID format" )
+        # Keep backward compatibility with previous System state backup sessions
+        # Can be removed later
+        if ! is_cove; then
+            [[ $partuuid =~ ^$PARTUUID_REGEX$ ]] || broken_part_errors+=( "$partuuid is an unexpected PARTUUID format" )
+        fi
         partitions+=( "$part_dev" )
         # Using the parted_mklabel fallback behaviour in create_partitions() in prepare/GNU/Linux/100_include_partition_code.sh
         # only when there is no parted_mklabel value, but when there is a parted_mklabel value use it as is:
