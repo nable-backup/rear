@@ -10,6 +10,7 @@ RUN apt-get update && \
     coreutils \
     curl \
     make \
+    ronn \
     && rm -rf /var/lib/apt/lists/*
 
 ARG user=build
