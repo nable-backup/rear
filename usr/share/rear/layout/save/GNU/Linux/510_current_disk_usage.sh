@@ -24,3 +24,20 @@ else
     df -Pl -BM -x encfs -x tmpfs -x devtmpfs >$original_disk_space_usage_file
 fi
 
+# Automatically comment out lines in original_disk_space_usage_file that match AUTOEXCLUDE_PATH
+if test "$AUTOEXCLUDE_PATH" ; then
+    for exclude in "${AUTOEXCLUDE_PATH[@]}" ; do
+        while read -r _ _ _ _ _ mountpoint ; do
+            # Check if mountpoint is a subdirectory of the exclude path
+            # Logic matching layout/save/default/320_autoexclude.sh:
+            if test "${mountpoint#${exclude%/}/}" != "$mountpoint" ; then
+                DebugPrint "Automatically excluding $mountpoint from $original_disk_space_usage_file (belongs to $exclude in AUTOEXCLUDE_PATH)"
+                local escaped_mp
+                # Escape the mountpoint for use in the subsequent sed command
+                escaped_mp=$( echo "$mountpoint" | sed 's/[][\/$*.^]/\\&/g' )
+                # Comment out the line
+                sed -i "/ $escaped_mp$/s/^/#/" "$original_disk_space_usage_file"
+            fi
+        done < <( grep -v -E "^Filesystem|^#" "$original_disk_space_usage_file" )
+    done
+fi
