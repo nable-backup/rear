@@ -34,7 +34,7 @@ if test "$AUTOEXCLUDE_PATH" ; then
                 DebugPrint "Automatically excluding $mountpoint from $original_disk_space_usage_file (belongs to $exclude in AUTOEXCLUDE_PATH)"
                 local mp_pattern
                 # Escape the mountpoint for use in the subsequent sed command
-                mp_pattern=$( echo "$mountpoint" | sed 's/[]\/$*.^[],]/\\&/g' )
+                mp_pattern=$( echo "$mountpoint" | sed 's/[][\/$*.^,]/\\&/g' )
                 # Comment out the line
                 sed -i "\, $mp_pattern$,s/^/#/" "$original_disk_space_usage_file"
             fi
