@@ -17,8 +17,12 @@ for file_to_migrate in "$LAYOUT_FILE" "$original_disk_space_usage_file" "$rescue
     if apply_layout_mappings "$file_to_migrate" ; then
         DebugPrint "Applied disk layout mappings to $file_to_migrate"
     else
-        LogPrintError "Failed to apply disk layout mappings to $file_to_migrate"
-        applied_mappings_to_all_files="no"
+        if [ "$file_to_migrate" = "$original_disk_space_usage_file" ] ; then
+            LogPrint "WARNING: Failed to apply disk layout mappings to $file_to_migrate (likely due to unmapped excluded disks)."
+        else
+            LogPrintError "Failed to apply disk layout mappings to $file_to_migrate"
+            applied_mappings_to_all_files="no"
+        fi
     fi
 done
 is_true $applied_mappings_to_all_files || Error "Failed to apply disk layout mappings"
