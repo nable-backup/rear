@@ -168,11 +168,16 @@ restore_args=(
     control.restore.start
     -datasource FileSystem
     -restore-to "${TARGET_FS_ROOT}"
-    -exclude "${COVE_REAL_INSTALL_DIR}"
     -session-search-policy OldestIfRequestedNotFound
 )
 
-[ -e "${COVE_AUTH_TOOL_DIR}" ] && restore_args+=( -exclude "${COVE_AUTH_TOOL_DIR}" )
+COVE_EXCLUDE_NODES_FROM_RESTORE+=( "${COVE_REAL_INSTALL_DIR}" )
+
+[ -e "${COVE_AUTH_TOOL_DIR}" ] && COVE_EXCLUDE_NODES_FROM_RESTORE+=( "${COVE_AUTH_TOOL_DIR}" )
+
+for exclusion in "${COVE_EXCLUDE_NODES_FROM_RESTORE[@]}"; do
+    restore_args+=( -exclude "$exclusion" )
+done
 
 [ -z "${COVE_TIMESTAMP}" ] || restore_args+=( -time "${COVE_TIMESTAMP}" )
 
