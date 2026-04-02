@@ -1027,12 +1027,12 @@ function get_grub_editenv() {
         return 0
     fi
 
-    local grub_editenv_path="type -P grub-editenv || type -P grub2-editenv"
+    local grub_editenv_path_cmd="type -P grub-editenv || type -P grub2-editenv"
 
     if test "$RECOVERY_MODE"; then
-        GRUB_EDITENV_PATH="$(chroot "$TARGET_FS_ROOT" /bin/bash -c "$grub_editenv_path")"
+        GRUB_EDITENV_PATH="$(run_in_target_root "$grub_editenv_path_cmd")"
     else
-        GRUB_EDITENV_PATH="$($grub_editenv_path)"
+        GRUB_EDITENV_PATH="$($grub_editenv_path_cmd)"
     fi
 
     if [ -z "$GRUB_EDITENV_PATH" ]; then
@@ -1040,6 +1040,16 @@ function get_grub_editenv() {
     fi
 
     echo "$GRUB_EDITENV_PATH"
+}
+
+function list_grubenv() {
+    local grub_editenv
+    if ! grub_editenv=$(get_grub_editenv); then
+        LogPrintError "Failed to list grubenv: neither grub-editenv nor grub2-editenv was found"
+        return 1
+    fi
+
+    "$grub_editenv" - list
 }
 
 function is_grub2_used() {
@@ -1060,6 +1070,24 @@ function is_grub2_used() {
             return 1
             ;;
     esac
+}
+
+GRUBENV_PATH="$VAR_DIR/recovery/grubenv"
+
+function is_grubenv_set_required() {
+    if ! is_grub2_used; then
+        return 1;
+    fi
+
+    if test "$RECOVERY_MODE"; then
+        [ -f "$GRUBENV_PATH" ]
+    else
+        # env_block sets the external raw block where GRUB can store environment block.
+        # See https://www.gnu.org/software/grub/manual/grub/html_node/env_005fblock.html
+        # for more details about env_block.
+        # As env_block may be located in filesystem blocks, it is accessible only during backup.
+        list_grubenv | grep -q "^env_block="
+    fi
 }
 
 # vim: set et ts=4 sw=4

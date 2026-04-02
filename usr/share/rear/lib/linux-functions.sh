@@ -255,3 +255,7 @@ function filesystem_name () {
     fi
 }
 
+function run_in_target_root() {
+    local cmd="$1"
+    chroot "$TARGET_FS_ROOT" /bin/bash -c "PATH=/sbin:/usr/sbin:/usr/bin:/bin $cmd"
+}
