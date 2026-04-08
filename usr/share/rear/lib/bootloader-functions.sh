@@ -1030,7 +1030,7 @@ function get_grub_editenv() {
     local grub_editenv_path_cmd="type -P grub-editenv || type -P grub2-editenv"
 
     if test "$RECOVERY_MODE"; then
-        GRUB_EDITENV_PATH="$(run_in_target_root "$grub_editenv_path_cmd")"
+        GRUB_EDITENV_PATH="$(run_in_target_fs_root "$grub_editenv_path_cmd")"
     else
         GRUB_EDITENV_PATH="$($grub_editenv_path_cmd)"
     fi

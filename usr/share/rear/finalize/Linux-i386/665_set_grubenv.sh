@@ -9,7 +9,7 @@ function set_grubenv() {
 
     # It is essential to set up the environment block in the reserved btrfs sector
     # See https://en.opensuse.org/GRUB#GRUB2_on_btrfs_/boot for more details
-    run_in_target_root "\"$grub_editenv\" - unset dummy"
+    run_in_target_fs_root "\"$grub_editenv\" - unset dummy"
 
     local exit_code=0
     local var_value
@@ -19,7 +19,7 @@ function set_grubenv() {
         if [ "$var" = "env_block" ] ; then
             continue
         fi
-        if ! run_in_target_root "\"$grub_editenv\" - set \"$var_value\""; then
+        if ! run_in_target_fs_root "\"$grub_editenv\" - set \"$var_value\""; then
             LogPrintError "Failed to set '$var_value' to grubenv"
             exit_code=1
         fi
