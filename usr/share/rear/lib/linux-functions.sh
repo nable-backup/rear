@@ -255,6 +255,11 @@ function filesystem_name () {
     fi
 }
 
+function process_exists() {
+    local pid=$1
+    kill -0 "$pid" 2>/dev/null
+}
+
 # Run the given command as 'chroot $TARGET_FS_ROOT /bin/bash --login -c <cmd>'.
 # Detect whether the login shell can be used as is or the --noprofile option
 # is required.
@@ -265,7 +270,7 @@ function run_in_chroot() {
 
         for _ in {1..10}; do
             sleep 0.5
-            if ! kill -0 "$pid" 2>/dev/null; then
+            if ! process_exists "$pid"; then
                 if wait "$pid"; then
                     USE_NOPROFILE_FOR_LOGIN_SHELL=0
                     LogPrint "The login shell works without any issues."
@@ -277,10 +282,26 @@ function run_in_chroot() {
         done
 
         # If login shell is blocked, e.g., because /bin/bash is
-        # called inside /root/.profile, need to kill the process
+        # called inside /root/.profile, need to kill the process and its children
         if [ -z "$USE_NOPROFILE_FOR_LOGIN_SHELL" ]; then
-            kill -9 "$pid"
-            wait "$pid"
+            local descendant_pid
+            for descendant_pid in $( descendants_pids "$pid" ) ; do
+                LogPrint "Killing descendant process (PID $descendant_pid)"
+                kill -9 "$descendant_pid"
+                for _ in {1..10}; do
+                    sleep 1
+                    if ! process_exists "$descendant_pid"; then
+                        break
+                    fi
+                done
+
+                if process_exists "$descendant_pid"; then
+                    LogPrintError "Descendant process (PID $descendant_pid) has not yet been killed"
+                else
+                    LogPrint "Descendant process (PID $descendant_pid) has been killed"
+                fi
+            done
+
             USE_NOPROFILE_FOR_LOGIN_SHELL=1
         fi
 
