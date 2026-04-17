@@ -358,7 +358,7 @@ extract_partitions() {
             local partition_name="${device%/*}/${partition_prefix#*/}$partition_nr"
             local partition_device
             partition_device="$(get_device_name "$partition_name")"
-            partuuid="$(get_partition_guid "$partition_device")"
+            partuuid="$(get_partuuid "$partition_device")"
         fi
 
         if [ -z "$partuuid" ]; then
@@ -508,7 +508,7 @@ Log "Saving disks and their partitions"
                     Error "Invalid 'disk $devname' entry (DASD partition label on non-s390 arch $ARCH)"
                 fi
                 echo "# Partitions on $devname"
-                echo "# Format: part <device> <partition size(bytes)> <partition start(bytes)> <partition type|name> <flags> /dev/<partition> <partition guid|no-partuuid>"
+                echo "# Format: part <device> <partition size(bytes)> <partition start(bytes)> <partition type|name> <flags> /dev/<partition> <partition uuid|no-partuuid>"
                 extract_partitions "$devname"
             fi
         fi
@@ -523,3 +523,10 @@ Log "Saving disks and their partitions"
 # cf. https://github.com/rear/rear/issues/1963
 grep -Eq '^disk |^part ' $DISKLAYOUT_FILE && REQUIRED_PROGS+=( parted partprobe ) || true
 
+# sgdisk is required if PARTUUIDs must be preserved
+# Cove Rescue Media must always have it
+if ! is_cove && partuuid_restoration_is_required; then
+    REQUIRED_PROGS+=( sgdisk )
+else
+    PROGS+=( sgdisk )
+fi

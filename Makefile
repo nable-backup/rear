@@ -45,7 +45,7 @@ else
 			ifneq ($(feature_suffix),)
 				cove_suffix = $(feature_suffix)
 			endif
-			git_status := $(shell git status --porcelain)
+			git_status := $(shell git status --porcelain -- . ':(exclude)doc/rear.8')
 			ifneq ($(git_status),)
 				changed_suffix = .changed
 			endif

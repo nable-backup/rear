@@ -61,7 +61,7 @@ function bios_grub_install ()
     if is_true $USING_UEFI_BOOTLOADER ; then
         # If running under UEFI, we need to specify the target explicitly, otherwise grub-install thinks
         # that we are installing the EFI bootloader.
-        if ! chroot $TARGET_FS_ROOT /bin/bash --login -c "$grub_name-install --target=i386-pc $grub2_install_device" ; then
+        if ! run_in_chroot "$grub_name-install --target=i386-pc $grub2_install_device" ; then
             LogPrintError "Failed to install GRUB2 for BIOS boot (target i386-pc) on $bootdisk"
             # purely informational test that may help to explain the reason for the error
             if ! test -d "$TARGET_FS_ROOT/boot/$grub_name/i386-pc" ; then
@@ -70,7 +70,7 @@ function bios_grub_install ()
             return 1
         fi
     else
-        if ! chroot $TARGET_FS_ROOT /bin/bash --login -c "$grub_name-install $grub2_install_device" ; then
+        if ! run_in_chroot "$grub_name-install $grub2_install_device" ; then
             LogPrintError "Failed to install GRUB2 on $grub2_install_device"
             return 1
         fi
@@ -109,7 +109,7 @@ if ! test -d "$TARGET_FS_ROOT/boot/$grub_name" ; then
 fi
 
 # Generate GRUB configuration file anew to be on the safe side (this could be even mandatory in MIGRATION_MODE):
-if ! chroot $TARGET_FS_ROOT /bin/bash --login -c "$grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
+if ! run_in_chroot "$grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
     LogPrintError "Failed to generate boot/$grub_name/grub.cfg in $TARGET_FS_ROOT - trying to install GRUB2 nevertheless"
 fi
 

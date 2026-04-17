@@ -75,7 +75,7 @@ if test -f "$directories_permissions_owner_group_file" ; then
                     # the commands inside 'chroot' as one would type them in a normal working shell.
                     # In particular one can call programs (like 'chown') by their basename without path
                     # cf. https://github.com/rear/rear/issues/862#issuecomment-274068914
-                    if ! chroot $TARGET_FS_ROOT /bin/bash --login -c "chown $v $owner:$group $directory" 1>&2 ; then
+                    if ! run_in_chroot "chown $v $owner:$group $directory" 1>&2 ; then
                         LogPrintError "Failed to 'chown $owner:$group $directory' "
                     fi
                 fi

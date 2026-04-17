@@ -13,7 +13,7 @@ function setup() {
     # shellcheck disable=SC1091
     source "$REAR_SHARE_DIR/lib/global-functions.sh"
 
-    function LogPrint() {
+    function WarnPrint() {
         echo "$@"
     }
 }

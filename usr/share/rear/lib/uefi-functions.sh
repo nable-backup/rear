@@ -220,25 +220,25 @@ declare -F efi_check_bootloader_path >/dev/null || function efi_check_bootloader
 declare -F efi_get_current_full_bootloader_path >/dev/null || function efi_get_current_full_bootloader_path {
     local current_boot
     if ! current_boot=$(efi_get_current_boot); then
-        LogPrint "WARN: EFI: Failed to get current boot"
+        WarnPrint "WARN: EFI: Failed to get current boot"
         return 1
     fi
 
     local partuuid
     if ! partuuid=$(efi_get_boot_partuuid "$current_boot"); then
-        LogPrint "WARN: EFI: Failed to get partuuid for the current boot '$current_boot'"
+        WarnPrint "WARN: EFI: Failed to get partuuid for the current boot '$current_boot'"
         return 1
     fi
 
     local mnt
     if ! mnt=$(efi_get_mountpoint "$partuuid"); then
-        LogPrint "WARN: EFI: Failed to get mountpoint for partuuid '$partuuid'"
+        WarnPrint "WARN: EFI: Failed to get mountpoint for partuuid '$partuuid'"
         return 1
     fi
 
     local path
     if ! path=$(efi_get_bootloader_path "$current_boot"); then
-        LogPrint "WARN: EFI: Failed to get bootloader path for the current boot '$current_boot'"
+        WarnPrint "WARN: EFI: Failed to get bootloader path for the current boot '$current_boot'"
         return 1
     fi
 
@@ -249,7 +249,7 @@ declare -F efi_get_current_full_bootloader_path >/dev/null || function efi_get_c
     local full_path="$mnt$path"
 
     if ! efi_check_bootloader_path "$full_path"; then
-        LogPrint "WARN: EFI: Bootloader path '$full_path' does not exist"
+        WarnPrint "WARN: EFI: Bootloader path '$full_path' does not exist"
         return 1
     fi
 

@@ -12,6 +12,9 @@ used_bootloader=( $( cat $VAR_DIR/recovery/bootloader ) )
 # that with 'shopt -s nullglob' files that do not exist will not appear
 # so nonexistent files are not appended to CHECK_CONFIG_FILES
 # cf. https://github.com/rear/rear/pull/2796#issuecomment-1117171070
+#
+# Since BLS (Boot Loader Specification) files are common to bootloaders,
+# they are added to CHECK_CONFIG_FILES in default.conf.
 case $used_bootloader in
     (EFI|GRUB2-EFI)
         CHECK_CONFIG_FILES+=( /boot/efi/EFI/*/grub*.cfg )
@@ -41,6 +44,6 @@ case $used_bootloader in
         CHECK_CONFIG_FILES+=( /[e]tc/zipl.conf )
         ;;
     (*)
-        BugError "Unknown bootloader ($used_bootloader) - ask for sponsoring to get this fixed"
+        BugError "Unknown bootloader: $used_bootloader"
         ;;
 esac

@@ -995,4 +995,71 @@ function make_pxelinux_config_grub {
     echo "}"
 }
 
+function get_sysconfig_bootloader() {
+    local sysconfig_bootloader_path=/etc/sysconfig/bootloader
+    if test "$RECOVERY_MODE" ; then
+        sysconfig_bootloader_path="$TARGET_FS_ROOT$sysconfig_bootloader_path"
+    fi
+
+    if ! test -f "$sysconfig_bootloader_path" ; then
+        return 1
+    fi
+
+    local sysconfig_bootloader
+
+    # SUSE uses LOADER_TYPE, and others?
+    # Getting values from sysconfig files is like sourcing shell scripts so that the last setting wins:
+    sysconfig_bootloader=$( grep ^LOADER_TYPE "$sysconfig_bootloader_path" | cut -d= -f2 | tail -n1 | sed -e 's/"//g' )
+
+    if ! test "$sysconfig_bootloader" ; then
+        return 1
+    fi
+
+    echo "$sysconfig_bootloader"
+}
+
+: "${GRUB_EDITENV_PATH:=""}"
+
+function get_grub_editenv() {
+    # Check cached path first
+    if [ -n "$GRUB_EDITENV_PATH" ]; then
+        echo "$GRUB_EDITENV_PATH"
+        return 0
+    fi
+
+    local grub_editenv_path="type -P grub-editenv || type -P grub2-editenv"
+
+    if test "$RECOVERY_MODE"; then
+        GRUB_EDITENV_PATH="$(chroot "$TARGET_FS_ROOT" /bin/bash -c "$grub_editenv_path")"
+    else
+        GRUB_EDITENV_PATH="$($grub_editenv_path)"
+    fi
+
+    if [ -z "$GRUB_EDITENV_PATH" ]; then
+        return 1
+    fi
+
+    echo "$GRUB_EDITENV_PATH"
+}
+
+function is_grub2_used() {
+    local bootloader_path="$VAR_DIR/recovery/bootloader"
+
+    if [ ! -f "$bootloader_path" ]; then
+        return 1
+    fi
+
+    local used_bootloader
+    used_bootloader="$( cat "$bootloader_path" )"
+
+    case $used_bootloader in
+        (GRUB2|GRUB2-EFI)
+            return 0
+            ;;
+        (*)
+            return 1
+            ;;
+    esac
+}
+
 # vim: set et ts=4 sw=4

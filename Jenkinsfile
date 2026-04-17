@@ -13,7 +13,7 @@ def String repositoryName = 'rear'
 def config = [
     cloud: envType == 'prd' ? 'cove-agent-prd' : "backup-${envType}",
     serviceAccount: envType == 'prd' ? 'ecr' : 'backup',
-    buildImage: "${nsbuild.ecrHost()}/cove/onprem/develop/rear-builder:v1.7"
+    buildImage: "${nsbuild.ecrHost()}/cove/onprem/develop/rear-builder:v1.1"
 ]
 
 def secrets = [
@@ -115,10 +115,16 @@ pipeline {
                         """)
                         def repository = (envType == 'dev') ? 'cove-generic-develop-local' : 'cove-generic-release-local'
                         shellHelper.exec('Upload', """
-                            PACKAGE="rear-\$(make version).tar.gz"
+                            VERSION="\$(make version)"
+                            PACKAGE="rear-\${VERSION}.tar.gz"
+                            TARGET_NAME="\$PACKAGE"
+                            if [ "${envType}" != "dev" ]; then
+                                COMMIT_REV="\$(git rev-parse HEAD | cut -c 1-8)"
+                                TARGET_PACKAGE="rear-\${VERSION}-\${COMMIT_REV}.tar.gz"
+                            fi
                             curl -sSf -X PUT -T dist/\${PACKAGE} \
                                 -u \${ARTIFACTORY_USERNAME_COVE}:\${ARTIFACTORY_TOKEN_COVE} \
-                                \${ARTIFACTORY_URL}/${repository}/rear/\${PACKAGE}
+                                \${ARTIFACTORY_URL}/${repository}/rear/\${TARGET_PACKAGE}
                         """)
                     }
                 }
