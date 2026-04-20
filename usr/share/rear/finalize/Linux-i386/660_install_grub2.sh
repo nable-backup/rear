@@ -98,19 +98,12 @@ is_grub2_installed || return 0
 
 LogPrint "Installing GRUB2 boot loader..."
 
-# Check if we find GRUB2 where we expect it (GRUB2 can be in boot/grub or boot/grub2):
-grub_name="grub2"
-if ! test -d "$TARGET_FS_ROOT/boot/$grub_name" ; then
-    grub_name="grub"
-    if ! test -d "$TARGET_FS_ROOT/boot/$grub_name" ; then
-        LogPrintError "Cannot install GRUB2 (neither boot/grub nor boot/grub2 directory in $TARGET_FS_ROOT)"
-        return 1
-    fi
-fi
+# Check if we find GRUB2 where we expect it:
+grub_name="$( get_target_grub2_name )" || return 1
 
 # Generate GRUB configuration file anew to be on the safe side (this could be even mandatory in MIGRATION_MODE):
-if ! run_in_chroot "$grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
-    LogPrintError "Failed to generate boot/$grub_name/grub.cfg in $TARGET_FS_ROOT - trying to install GRUB2 nevertheless"
+if ! grub2_mkconfig ; then
+    LogPrint "Trying to install GRUB2 despite GRUB config generation failure"
 fi
 
 # When GRUB2_INSTALL_DEVICES is specified by the user
