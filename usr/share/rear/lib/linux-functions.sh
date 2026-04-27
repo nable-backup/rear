@@ -325,3 +325,33 @@ function run_in_chroot() {
 
     chroot "$TARGET_FS_ROOT" /bin/bash --login $noprofile -c "$command"
 }
+
+# Get LANG from known system locale config files.
+# In RECOVERY_MODE, reads from $TARGET_FS_ROOT; otherwise from the running system.
+# Outputs the LANG value on stdout. Returns 1 if not found.
+function get_lang () {
+    local locale_files=(
+        "/etc/locale.conf"     # RHEL-based
+        "/etc/sysconfig/i18n"  # RHEL <= 6
+        "/etc/default/locale"  # Debian-based
+    )
+
+    local locale_file
+    for locale_file in "${locale_files[@]}"; do
+        if test "$RECOVERY_MODE"; then
+            locale_file="$TARGET_FS_ROOT$locale_file"
+        fi
+
+        [ -f "$locale_file" ] || continue
+
+        local lang_value
+        lang_value=$( grep '^LANG=' "$locale_file" | tail -1 | cut -d= -f2 | tr -d "\"'" || true )
+
+        if [ -n "$lang_value" ]; then
+            echo "$lang_value"
+            return 0
+        fi
+    done
+
+    return 1
+}

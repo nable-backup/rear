@@ -1062,4 +1062,32 @@ function is_grub2_used() {
     esac
 }
 
+function get_target_grub2_name() {
+    local grub_name
+    for grub_name in grub2 grub; do
+        if [ -d "$TARGET_FS_ROOT/boot/$grub_name" ]; then
+            echo "$grub_name"
+            return 0
+        fi
+    done
+
+    LogPrintError "Cannot find GRUB2 (neither boot/grub nor boot/grub2 directory exists in $TARGET_FS_ROOT)"
+    return 1
+}
+
+function grub2_mkconfig() {
+    local grub_name
+    grub_name="$( get_target_grub2_name )" || return 1
+
+    local lang_prefix=""
+    local target_lang
+    target_lang="$( get_lang )" && lang_prefix="LANG=$target_lang"
+
+    if ! run_in_chroot "$lang_prefix $grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
+        LogPrintError "Failed to generate boot/$grub_name/grub.cfg in $TARGET_FS_ROOT"
+        return 1
+    fi
+    return 0
+}
+
 # vim: set et ts=4 sw=4
