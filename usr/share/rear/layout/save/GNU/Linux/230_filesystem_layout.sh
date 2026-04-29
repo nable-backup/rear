@@ -210,6 +210,11 @@ fi
                 if [[ -n $default_mount_options ]]; then
                     echo -n " default_mount_options=$default_mount_options"
                 fi
+                if features=$( get_ext_fs_features "$device" ); then
+                    echo -n " features=$features"
+                else
+                    LogPrintError "Failed to get filesystem features for $device"
+                fi
                 ;;
             (vfat)
                 label=$(blkid_label_of_device $device)
