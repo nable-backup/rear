@@ -203,6 +203,16 @@ function xfs_parse
     xfs_param_opt[24]="-i"
     xfs_param_name[24]="nrext64"
 
+    xfs_param_iname[25]="parent"
+    xfs_param_search[25]="naming_section"
+    xfs_param_opt[25]="-n"
+    xfs_param_name[25]="parent"
+
+    xfs_param_iname[26]="exchange"
+    xfs_param_search[26]="metadata_section"
+    xfs_param_opt[26]="-i"
+    xfs_param_name[26]="exchange"
+
     # Here we will save some variables, that will be later used for
     # calculations (block_size) or due dependencies with other options (crc).
 
@@ -280,7 +290,7 @@ function xfs_parse
             xfs_opts+="${xfs_param_opt[$i]} $var=$val "
         elif [ "$BACKUP" = "COVE" ]; then
             # Disable unknown features for source xfs_info in Cove Rescue Media
-            local xfs_features=("rmapbt" "reflink" "bigtime" "inobtcount" "nrext64")
+            local xfs_features=("rmapbt" "reflink" "bigtime" "inobtcount" "nrext64" "parent" "exchange")
             if IsInArray "${xfs_param_name[$i]}" "${xfs_features[@]}"; then
                 xfs_opts+="${xfs_param_opt[$i]} ${xfs_param_name[$i]}=0 "
             fi
