@@ -347,3 +347,61 @@ function remove_mount_options_values () {
     # Remove all commas at the end:
     echo "${str/%,/}"
 }
+
+function get_ext_fs_features() {
+    local device="$1"
+
+    local enabled_features=""
+    enabled_features=$( tune2fs -l "$device" | grep -i "Filesystem features" | cut -d ':' -f 2 ) || return 1
+
+    local known_features=(
+        64bit
+        bigalloc
+        casefold
+        dir_index
+        dir_nlink
+        ea_inode
+        encrypt
+        ext_attr
+        extent
+        extra_isize
+        filetype
+        flex_bg
+        has_journal
+        huge_file
+        inline_data
+        journal_dev
+        large_dir
+        large_file
+        metadata_csum
+        metadata_csum_seed
+        meta_bg
+        mmp
+        orphan_file
+        project
+        quota
+        resize_inode
+        sparse_super
+        sparse_super2
+        stable_inodes
+        uninit_bg
+        verity
+    )
+
+    # Validation is required because setting unknown features will cause mke2fs to fail.
+    # Also, tune2fs returns some flags rather than actual features, such as 'needs_recovery' or 'orphan_present'.
+    local validated_features=""
+    local feature
+    for feature in $enabled_features; do
+        if IsInArray "$feature" "${known_features[@]}"; then
+            validated_features+="$feature,"
+        fi
+    done
+
+    if [ -z "$validated_features" ]; then
+        # Disable all features, e.g., when no features are enabled.
+        validated_features="none"
+    fi
+
+    echo "${validated_features%,}"
+}
