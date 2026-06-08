@@ -103,3 +103,11 @@ function is_cove_rescue_device() {
 
     [ "$label" = "COVE_RESCUE" ]
 }
+
+function is_cove_rescue_media_version_ge() {
+    local required_version="$1"
+    [ -n "$COVE_RESCUE_MEDIA_VERSION" ] || return 1
+    local lower_version
+    lower_version="$(printf '%s\n%s' "$required_version" "$COVE_RESCUE_MEDIA_VERSION" | sort -V | head -n 1)"
+    [ "$lower_version" = "$required_version" ]
+}
