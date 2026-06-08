@@ -91,9 +91,23 @@ function cove_stop_pc() {
 function cove_start_pc() {
     local pid
     pid="$(get_pc_pid)"
-    if [ -z "$pid" ]; then
-        "${COVE_INSTALL_DIR}/bin/ProcessController" serve
+    if [ -n "$pid" ]; then
+        return 0
     fi
+
+    (
+        if is_true "$COVE_USE_JEMALLOC"; then
+            local jemalloc_path=""
+            jemalloc_path="$(ldconfig -p | awk '/libjemalloc.so.2/{print $NF; exit}')"
+            if [ -n "$jemalloc_path" ] && [ -e "$jemalloc_path" ]; then
+                export LD_PRELOAD="$jemalloc_path"
+                export MALLOC_CONF="$COVE_MALLOC_CONF"
+            else
+                LogPrintError "COVE_USE_JEMALLOC is true, but jemalloc not found"
+            fi
+        fi
+        "${COVE_INSTALL_DIR}/bin/ProcessController" serve
+    )
 }
 
 # Gets FileSystem restore sessions
