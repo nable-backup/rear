@@ -13,4 +13,5 @@ function get_os_release_field() {
 # VERSION_ID is the Debian release (e.g. "12"). In that case COVE_RESCUE_MEDIA_VERSION should stay empty.
 if [ "$( get_os_release_field ID )" = "cove" ]; then
     COVE_RESCUE_MEDIA_VERSION="$( get_os_release_field VERSION_ID )"
+    COVE_RESCUE_MEDIA_VARIANT="$( get_os_release_field VARIANT_ID )"
 fi
