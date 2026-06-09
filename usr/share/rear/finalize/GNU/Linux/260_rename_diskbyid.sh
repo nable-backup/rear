@@ -48,19 +48,7 @@ while read ID DEV_NAME; do
         # we delete DEV_NAME to make sure it won't get used
         DEV_NAME=""
     else
-        # get symlinks defined by udev from a device
-        # UdevSymlinkName() defined in lib/layout-function.sh
-        SYMLINKS=$(UdevSymlinkName $DEV_NAME)
-        set -- $SYMLINKS
-        while [ $# -gt 0 ]; do
-            if [[ $1 =~ /dev/disk/by-id ]]; then
-                # bingo, we found what we are looking for
-                ID_NEW=${1#/dev/disk/by-id/} # cciss-3600508b1001cd2b56e1aeab1f82dd70d
-                break
-            else
-                shift
-            fi
-        done
+        ID_NEW=$(get_new_device_identifier "$DEV_NAME" "$ID")
     fi
     echo $ID $DEV_NAME $ID_NEW
 done < "$OLD_ID_FILE" > "$NEW_ID_FILE"
