@@ -117,7 +117,7 @@ pipeline {
                         shellHelper.exec('Upload', """
                             VERSION="\$(make version)"
                             PACKAGE="rear-\${VERSION}.tar.gz"
-                            TARGET_NAME="\$PACKAGE"
+                            TARGET_PACKAGE="\$PACKAGE"
                             if [ "${envType}" != "dev" ]; then
                                 COMMIT_REV="\$(git rev-parse HEAD | cut -c 1-8)"
                                 TARGET_PACKAGE="rear-\${VERSION}-\${COMMIT_REV}.tar.gz"
