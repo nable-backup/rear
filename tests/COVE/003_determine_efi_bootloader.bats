@@ -14,7 +14,7 @@ function setup() {
     source "$REAR_SHARE_DIR/lib/global-functions.sh"
 
     function WarnPrint() {
-        echo "$@"
+        echo "WARN: $@"
     }
 }
 

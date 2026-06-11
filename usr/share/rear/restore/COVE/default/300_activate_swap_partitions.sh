@@ -22,8 +22,8 @@ fi
 for device in "${swap_devices[@]}"; do
     if [ -b "$device" ]; then
         LogPrint "Activating swap on $device"
-        swapon "$device" || LogPrintError "Failed to activate swap on $device"
+        swapon "$device" || WarnPrint "Failed to activate swap on $device"
     else
-        LogPrintError "Swap device $device not found or not a block device, skipping."
+        WarnPrint "Swap device $device not found or not a block device, skipping."
     fi
 done
