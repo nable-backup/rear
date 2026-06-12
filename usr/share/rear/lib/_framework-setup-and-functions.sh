@@ -517,8 +517,8 @@ function LogPrint () {
 
 # For cove warning messages
 function WarnPrint() {
-    { Log "$@"
-      PrintWarn "$@"
+    { Log "WARN:" "$@"
+      PrintWarn "WARN:" "$@"
     } 2>>/dev/$DISPENSABLE_OUTPUT_DEV
 }
 
