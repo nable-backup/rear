@@ -58,6 +58,7 @@ function create_fs () {
             # File system parameters:
             local blocksize="" reserved_blocks="" max_mounts="" check_interval="" default_mount_options=""
             local fragmentsize="" bytes_per_inode=""
+            local enable_features=""
             local option name value
             for option in $options ; do
                 name=${option%=*}
@@ -89,6 +90,9 @@ function create_fs () {
                     (default_mount_options)
                         default_mount_options=" -o $value"
                         ;;
+                    (features)
+                        enable_features=" -O $value"
+                        ;;
                 esac
             done
             # Cleanup disk partition:
@@ -100,11 +104,23 @@ function create_fs () {
                 tunefs="tune4fs"
             fi
 
-            ext_opts=""
-            if [ "$BACKUP" = "COVE" ] && [ "$OS_VENDOR" = "RedHatEnterpriseServer" ] && [ "${OS_VERSION%%.*}" = "6" ] ; then
-                if [ "$fstype" = "ext4" ]; then
-                    ext_opts="-O ^64bit,^metadata_csum,uninit_bg"
+            # Backup sessions created by Backup Manager 26.4 and earlier
+            # do not include the list of enabled filesystem features.
+            # The default options were taken from /etc/mke2fs.conf on Debian 12.
+            # It can be removed once these sessions are cleaned up.
+            if is_cove && [ -z "$enable_features" ]; then
+                local list_of_features="sparse_super,large_file,filetype,resize_inode,dir_index,ext_attr"
+                if [ "$fstype" = "ext3" ]; then
+                    list_of_features+=",has_journal"
+                elif [ "$fstype" = "ext4" ]; then
+                    if [ "$OS_VENDOR" = "RedHatEnterpriseServer" ] && [ "${OS_VERSION%%.*}" = "6" ]; then
+                        list_of_features+=",has_journal,extent,huge_file,flex_bg,dir_nlink,extra_isize,uninit_bg"
+                    else
+                        list_of_features+=",has_journal,extent,huge_file,flex_bg,metadata_csum,64bit,dir_nlink,extra_isize"
+                    fi
                 fi
+                echo "Log \"List of enabled filesystem features wasn't backed up. Enable the following default features: $list_of_features\"" >> "$LAYOUT_CODE"
+                enable_features=" -O $list_of_features"
             fi
 
             # Actually create the filesystem with initially correct UUID
@@ -119,13 +135,13 @@ function create_fs () {
                   echo "# but if that fails assume it failed because of missing support for '-U'"
                   echo "# (e.g. in RHEL 5 it fails, see https://github.com/rear/rear/issues/890)"
                   echo "# then fall back to using mkfs without '-U' plus 'tune2fs/tune4fs -U'"
-                  echo "if ! mkfs -t ${fstype}${blocksize}${fragmentsize}${bytes_per_inode} -U $uuid -F $ext_opts $device >&2 ; then"
-                  echo "    mkfs -t ${fstype}${blocksize}${fragmentsize}${bytes_per_inode} -F $ext_opts $device >&2"
+                  echo "if ! mkfs -t ${fstype}${blocksize}${fragmentsize}${bytes_per_inode}${enable_features} -U $uuid -F $device >&2 ; then"
+                  echo "    mkfs -t ${fstype}${blocksize}${fragmentsize}${bytes_per_inode}${enable_features} -F $device >&2"
                   echo "    $tunefs -U $uuid $device >&2"
                   echo "fi"
                 ) >> "$LAYOUT_CODE"
             else
-                echo "mkfs -t ${fstype}${blocksize}${fragmentsize}${bytes_per_inode} -F $ext_opts $device >&2" >> "$LAYOUT_CODE"
+                echo "mkfs -t ${fstype}${blocksize}${fragmentsize}${bytes_per_inode}${enable_features} -F $device >&2" >> "$LAYOUT_CODE"
             fi
             # Adjust tunable filesystem parameters on ext2/ext3/ext4 filesystems:
             # Set the label:

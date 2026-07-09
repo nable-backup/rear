@@ -74,22 +74,15 @@ type -p grub-probe || type -p grub2-probe || return 0
 
 LogPrint "Installing GRUB2 boot loader on PPC64/PPC64LE..."
 
-# Check if we find GRUB2 where we expect it (GRUB2 can be in boot/grub or boot/grub2):
-grub_name="grub2"
-if ! test -d "$TARGET_FS_ROOT/boot/$grub_name" ; then
-    grub_name="grub"
-    if ! test -d "$TARGET_FS_ROOT/boot/$grub_name" ; then
-        LogPrintError "Cannot install GRUB2 (neither boot/grub nor boot/grub2 directory in $TARGET_FS_ROOT)"
-        return 1
-    fi
-fi
+# Check if we find GRUB2 where we expect it:
+grub_name="$( get_target_grub2_name )" || return 1
 
 # Generate GRUB configuration file anew to be on the safe side (this could be even mandatory in MIGRATION_MODE):
 local grub2_config_generated="yes"
-if ! run_in_chroot "$grub_name-mkconfig -o /boot/$grub_name/grub.cfg" ; then
+if ! grub2_mkconfig ; then
     grub2_config_generated="no"
     # TODO: We should make this fatal.  Outdated/incomplete/just wrong grub2.cfg may result into an unbootable system.
-    LogPrintError "Failed to generate boot/$grub_name/grub.cfg in $TARGET_FS_ROOT - trying to install GRUB2 nevertheless"
+    LogPrint "Trying to install GRUB2 despite GRUB config generation failure"
 fi
 
 # Detect platform, e.g. PowerNV, in advance.

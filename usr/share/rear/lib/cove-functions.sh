@@ -49,9 +49,18 @@ function is_cove() {
 }
 
 function is_cove_in_azure() {
-    is_cove && grep -qw "cove_azure" /proc/cmdline && \
-        curl -H "Metadata: true" "http://169.254.169.254/metadata/instance?api-version=2021-02-01" \
-            --connect-timeout 3 1>/dev/null 2>&1
+    is_cove || return 1
+    # Older Cove Rescue Media (< 1.5.0) has the base Debian os-release which does not provide our VARIANT,
+    # so fall back to the 'cove_azure' kernel cmdline marker.
+    # TODO: Once we no longer support Cove Rescue Media < 1.5.0, rely unconditionally on
+    # COVE_RESCUE_MEDIA_VARIANT and remove the /proc/cmdline fallback.
+    if [ -n "$COVE_RESCUE_MEDIA_VARIANT" ]; then
+        [ "$COVE_RESCUE_MEDIA_VARIANT" = "azure" ] || return 1
+    else
+        grep -qw "cove_azure" /proc/cmdline || return 1
+    fi
+    curl -H "Metadata: true" "http://169.254.169.254/metadata/instance?api-version=2021-02-01" \
+        --connect-timeout 3 1>/dev/null 2>&1
 }
 
 # Since there is no reliable way of detecting whether it is running in a container or not,
@@ -102,4 +111,12 @@ function is_cove_rescue_device() {
     label=$(blkid_label_of_device "$device_name")
 
     [ "$label" = "COVE_RESCUE" ]
+}
+
+function is_cove_rescue_media_version_ge() {
+    local required_version="$1"
+    [ -n "$COVE_RESCUE_MEDIA_VERSION" ] || return 1
+    local lower_version
+    lower_version="$(printf '%s\n%s' "$required_version" "$COVE_RESCUE_MEDIA_VERSION" | sort -V | head -n 1)"
+    [ "$lower_version" = "$required_version" ]
 }
