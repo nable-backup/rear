@@ -244,13 +244,48 @@ function create_fs () {
             fi
             ;;
         (btrfs)
+            # Btrfs filesystem parameters:
+            local features="" nodesize="" sectorsize=""
+            local option="" name="" value=""
+            for option in $options ; do
+                name=${option%=*}
+                value=${option#*=}
+                case "$name" in
+                    (features)
+                        if is_btrfs_list_of_features_valid "$value"; then
+                            if ! features=$(get_btrfs_features_option_for_mkfs "$value"); then
+                                Error "Failed to prepare mkfs.btrfs -O option from '$value' for $device"
+                            fi
+                        else
+                            Error "$device Btrfs features $value is not empty and is not a comma-separated list of features"
+                        fi
+                        ;;
+                    (nodesize)
+                        if is_btrfs_nodesize_valid "$value"; then
+                            nodesize=" -n $value"
+                        else
+                            Error "$device Btrfs nodesize $value is not valid (must be a power of 2 and not larger than 65536)"
+                        fi
+                        ;;
+                    (sectorsize)
+                        if is_btrfs_sectorsize_valid "$value"; then
+                            sectorsize=" -s $value"
+                        else
+                            Error "$device Btrfs sectorsize $value is not valid (must be a power of 2)"
+                        fi
+                        ;;
+                esac
+            done
             # Starting with btrfs-progs v5.15, the free space tree (space_cache=v2)
             # is the default for all newly created filesystems. Since Cove Rescue Media
             # uses btrfs-progs v6.2, it needs to disable the free space tree
             # in case it wasn't enabled on the source system.
-            btrfs_opts=""
-            if [ "$BACKUP" = "COVE" ] && [[ ! "$options" == *"space_cache=v2"* ]]; then
-                btrfs_opts+="-R ^free-space-tree "
+            #
+            # Backup sessions created by Backup Manager v26.7 and earlier
+            # do not include the list of enabled Btrfs features.
+            # It can be removed once these sessions are cleaned up.
+            if [ -z "$features" ] && [ "$BACKUP" = "COVE" ] && [[ ! "$options" == *"space_cache=v2"* ]]; then
+                features=" -R ^free-space-tree"
             fi
 
             # Cleanup disk partition provided the disk partition is not already mounted:
@@ -267,10 +302,10 @@ function create_fs () {
                 # User -f [force] to force overwriting an existing btrfs on that disk partition
                 # when the disk was already used before, see https://bugzilla.novell.com/show_bug.cgi?id=878870
                 (   echo "  # Try to create btrfs with UUID"
-                    echo "  if ! mkfs -t $fstype -U $uuid -f $btrfs_opts $device >&2 ; then"
+                    echo "  if ! mkfs -t $fstype -U $uuid -f ${nodesize}${sectorsize}${features} $device >&2 ; then"
                     # Problem with old btrfs version is that UUID cannot be set during mkfs! So, we must map it and
                     # change later the /etc/fstab, /boot/grub/menu.lst, etc.
-                    echo "      mkfs -t $fstype -f $btrfs_opts $device >&2"
+                    echo "      mkfs -t $fstype -f ${nodesize}${sectorsize}${features} $device >&2"
                     echo "      new_uuid=\$( btrfs filesystem show $device 2>/dev/null | grep -o 'uuid: .*' | cut -d ':' -f 2 | tr -d '[:space:]' )"
                     echo "      if [ $uuid != \$new_uuid ] ; then"
                     echo "          # The following grep command intentionally also"
@@ -290,7 +325,7 @@ function create_fs () {
             else
                 # UUID is not provided. Create FS without UUID
                 # Latest version of btrfs provides -U option to specify UUID druring the filesystem creation.
-                echo "  mkfs -t $fstype -f $btrfs_opts $device" >> "$LAYOUT_CODE"
+                echo "  mkfs -t $fstype -f ${nodesize}${sectorsize}${features} $device" >> "$LAYOUT_CODE"
             fi
 
             # Set the label:
