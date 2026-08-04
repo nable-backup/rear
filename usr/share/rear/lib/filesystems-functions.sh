@@ -202,33 +202,35 @@ function get_btrfs_features_option_for_mkfs() {
 }
 
 # $1 - a filesystem UUID
-function get_btrfs_nodesize() {
+# $2 - an attribute name
+function get_btrfs_sysfs_attribute() {
     local uuid=$1
-    if [ -z "$uuid" ]; then
+    local attr=$2
+
+    if [ -z "$uuid" ] || [ -z "$attr" ]; then
         return 3
     fi
 
-    local nodesize_path=/sys/fs/btrfs/$uuid/nodesize
-    if [ ! -f "$nodesize_path" ]; then
+    local sysfs_attr_path="/sys/fs/btrfs/$uuid/$attr"
+    if [ ! -f "$sysfs_attr_path" ]; then
         return 127
     fi
 
-    cat "$nodesize_path"
+    cat "$sysfs_attr_path"
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_nodesize() {
+    local uuid=$1
+    local attr=nodesize
+    get_btrfs_sysfs_attribute "$uuid" "$attr"
 }
 
 # $1 - a filesystem UUID
 function get_btrfs_sectorsize() {
     local uuid=$1
-    if [ -z "$uuid" ]; then
-        return 3
-    fi
-
-    local sectorsize_path=/sys/fs/btrfs/$uuid/sectorsize
-    if [ ! -f "$sectorsize_path" ]; then
-        return 127
-    fi
-
-    cat "$sectorsize_path"
+    local attr=sectorsize
+    get_btrfs_sysfs_attribute "$uuid" "$attr"
 }
 
 # $1 - nodesize

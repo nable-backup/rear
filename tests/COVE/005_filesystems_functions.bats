@@ -607,3 +607,7 @@ no-holes"
 @test "Is Btrfs list of features valid: malicious code injected" {
     run -1 is_btrfs_list_of_features_valid "mixed-bg,;rm -rf /;extref"
 }
+
+@test "Get Btrfs sysfs attribute: attr is missing" {
+    run -3 get_btrfs_sysfs_attribute "013c4d47-3358-4366-b7cf-1982de64b888" ""
+}
