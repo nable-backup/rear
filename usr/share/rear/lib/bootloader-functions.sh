@@ -1095,7 +1095,7 @@ function is_grubenv_set_required() {
         done
 
         if [ $grubenv_found -ne 1 ]; then
-            LogPrintError "Failed to find grubenv at any location specified in GRUBENV_LOCATIONS to check whether an external env_block is used"
+            LogPrintError "Failed to find grubenv to check whether an external env_block is used"
             return 1
         fi
 
