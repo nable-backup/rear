@@ -360,7 +360,7 @@ function get_lang () {
 function set_selinux_permissive() {
     local os=$1
 
-    selinux_config="$TARGET_FS_ROOT/etc/selinux/config"
+    local selinux_config="$TARGET_FS_ROOT/etc/selinux/config"
 
     [ -f "$selinux_config" ] || return 0
 
