@@ -245,7 +245,8 @@ function create_fs () {
             ;;
         (btrfs)
             # Btrfs filesystem parameters:
-            local features="" nodesize="" sectorsize="" devices=""
+            local features="" nodesize="" sectorsize=""
+            local devices="" dprofile="" mprofile=""
             local option="" name="" value=""
             for option in $options ; do
                 name=${option%=*}
@@ -276,9 +277,23 @@ function create_fs () {
                         ;;
                     (devices)
                         if is_btrfs_list_of_devices_valid "$value"; then
-                            devices="${value//,/ }"
+                            devices=" ${value//,/ }"
                         else
                             Error "$device Btrfs devices $value is not a comma-separated list of device paths"
+                        fi
+                        ;;
+                    (dprofile)
+                        if is_btrfs_profile_valid "$value"; then
+                            dprofile=" -d $value"
+                        else
+                            Error "$device Btrfs data profile $value is not valid"
+                        fi
+                        ;;
+                    (mprofile)
+                        if is_btrfs_profile_valid "$value"; then
+                            mprofile=" -m $value"
+                        else
+                            Error "$device Btrfs metadata profile $value is not valid"
                         fi
                         ;;
                 esac
@@ -297,7 +312,7 @@ function create_fs () {
 
             # For backward compatibility since a list of devices may not be included in disklayout.conf
             if [ -z "$devices" ]; then
-                devices="$device"
+                devices=" $device"
             fi
 
             # Cleanup disk partition provided the disk partition is not already mounted:
@@ -314,10 +329,10 @@ function create_fs () {
                 # User -f [force] to force overwriting an existing btrfs on that disk partition
                 # when the disk was already used before, see https://bugzilla.novell.com/show_bug.cgi?id=878870
                 (   echo "  # Try to create btrfs with UUID"
-                    echo "  if ! mkfs -t $fstype -U $uuid -f ${nodesize}${sectorsize}${features} $devices >&2 ; then"
+                    echo "  if ! mkfs -t $fstype -U $uuid -f $nodesize$sectorsize$features$dprofile$mprofile$devices >&2 ; then"
                     # Problem with old btrfs version is that UUID cannot be set during mkfs! So, we must map it and
                     # change later the /etc/fstab, /boot/grub/menu.lst, etc.
-                    echo "      mkfs -t $fstype -f ${nodesize}${sectorsize}${features} $devices >&2"
+                    echo "      mkfs -t $fstype -f $nodesize$sectorsize$features$dprofile$mprofile$devices >&2"
                     echo "      new_uuid=\$( btrfs filesystem show $device 2>/dev/null | grep -o 'uuid: .*' | cut -d ':' -f 2 | tr -d '[:space:]' )"
                     echo "      if [ $uuid != \$new_uuid ] ; then"
                     echo "          # The following grep command intentionally also"
@@ -337,7 +352,7 @@ function create_fs () {
             else
                 # UUID is not provided. Create FS without UUID
                 # Latest version of btrfs provides -U option to specify UUID druring the filesystem creation.
-                echo "  mkfs -t $fstype -f ${nodesize}${sectorsize}${features} $devices" >> "$LAYOUT_CODE"
+                echo "  mkfs -t $fstype -f $nodesize$sectorsize$features$dprofile$mprofile$devices" >> "$LAYOUT_CODE"
             fi
 
             # Set the label:

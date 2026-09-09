@@ -248,7 +248,15 @@ while read -r _ device _ _ _ _ options; do
                 ;;
             (devices)
                 is_btrfs_list_of_devices_valid "$value" || \
-                    broken_btrfs_errors+=("$device Btrfs devices $value is not a comma-separated list of device paths")
+                    broken_btrfs_errors+=( "$device Btrfs devices $value is not a comma-separated list of device paths" )
+                ;;
+            (dprofile)
+                is_btrfs_profile_valid "$value" || \
+                    broken_btrfs_errors+=( "$device Btrfs data profile $value is not valid" )
+                ;;
+            (mprofile)
+                is_btrfs_profile_valid "$value" || \
+                    broken_btrfs_errors+=( "$device Btrfs metadata profile $value is not valid" )
                 ;;
         esac
     done
