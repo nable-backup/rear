@@ -45,12 +45,24 @@ function create_fs () {
         cleanup_info_message="Using dd to cleanup the first 512 bytes on '$device' before creating filesystem."
     fi
 
-    # Tell what will be done:
-    local create_filesystem_info_message="Creating filesystem of type '$fstype' with mount point '$mountpoint' on '$device'."
-    Debug "$create_filesystem_info_message"
-    echo "LogPrint '$create_filesystem_info_message'" >> "$LAYOUT_CODE"
-    Debug "$cleanup_info_message"
-    echo "# $cleanup_info_message" >> "$LAYOUT_CODE"
+    function print_start_fs_creation_info_msg() {
+        # fstype, mountpoint and cleanup_info_message are captured from the parent scope
+        local devices=$1
+
+        local create_filesystem_info_message="Creating filesystem of type '$fstype' with mount point '$mountpoint' on '$devices'."
+        Debug "$create_filesystem_info_message"
+        echo "LogPrint '$create_filesystem_info_message'" >> "$LAYOUT_CODE"
+        Debug "$cleanup_info_message"
+        echo "# $cleanup_info_message" >> "$LAYOUT_CODE"
+    }
+
+    # Tell what will be done.
+    # Since Btrfs can be created on top of multiple block devices, and
+    # the list of device paths is parsed below, the start message for Btrfs
+    # is put separately once the list of device paths is known.
+    if [ "$fstype" != "btrfs" ]; then
+        print_start_fs_creation_info_msg "$device"
+    fi
 
     # Actually do it:
     case "$fstype" in
@@ -314,6 +326,8 @@ function create_fs () {
             if [ -z "$devices" ]; then
                 devices=" $device"
             fi
+
+            print_start_fs_creation_info_msg "${devices# }"
 
             # Cleanup disk partition provided the disk partition is not already mounted:
             echo "mount | grep -q $device || $cleanup_command" >> "$LAYOUT_CODE"
