@@ -255,6 +255,112 @@ function is_btrfs_list_of_features_valid() {
     [ -z "$list" ] || [[ "$list" =~ ^[0-9a-z-]+(,[0-9a-z-]+)*$ ]]
 }
 
+# $1 - mountpoint
+function get_btrfs_devices() {
+    local mountpoint=$1
+    if [ -z "$mountpoint" ]; then
+        return 3
+    fi
+
+    local fs_structure
+    if ! fs_structure="$(btrfs filesystem show "$mountpoint")"; then
+        LogPrintError "Failed to get Btrfs filesystem structure for $mountpoint."
+        return 1
+    fi
+
+    # Assume that the output of 'btrfs filesystem show <mountpoint>' has the following structure:
+    # Label: none  uuid: f8abe312-ae4f-4115-8a8e-3603bba79604
+    #    Total devices 1 FS bytes used 13.03GiB
+    #    devid    1 size 29.50GiB used 17.07GiB path /dev/sda2
+    local devices
+    devices="$(echo "$fs_structure" | awk '$(NF-1) == "path" {print $NF}')"
+    devices=${devices//$'\n'/,}
+
+    if [ -z "$devices" ]; then
+        LogPrintError "There is no devid in the output of 'btrfs filesystem show $mountpoint'."
+        return 1
+    fi
+
+    echo "$devices"
+}
+
+# $1 - a comma-separated list of device paths
+function is_btrfs_list_of_devices_valid() {
+    local paths
+    IFS=',' read -ra paths <<< "$1"
+
+    if [ ${#paths[@]} -eq 0 ]; then
+        return 1
+    fi
+
+    local path
+    for path in "${paths[@]}"; do
+        # Regex is created based on the https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_282
+        # It will fail if a non-portable character is used, e.g., '<' or '('.
+        if [[ ! "$path" =~ ^/dev/[[:alnum:]/._-]+$ ]]; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+BTRFS_PROFILES=(single dup raid0 raid1 raid1c3 raid1c4 raid10 raid5 raid6)
+
+# $1 - a filesystem UUID
+# $2 - a type. Valid values are data or metadata.
+function get_btrfs_profile() {
+    local uuid=$1
+    if [ -z "$uuid" ]; then
+        return 3
+    fi
+
+    local type=$2
+    case "$type" in
+        (data|metadata)
+            ;;
+        (*)
+            return 3
+            ;;
+    esac
+
+    local sysfs_alloc_path="/sys/fs/btrfs/$uuid/allocation"
+    if [ -d "$sysfs_alloc_path/$type" ]; then
+        :
+    elif [ -d "$sysfs_alloc_path/mixed" ]; then
+        # In mixed mode /sys/fs/btrfs/UUID/allocation/mixed/ should be used
+        type=mixed
+    else
+        LogPrintError "Failed to get Btrfs $type profile because '$sysfs_alloc_path/$type' is missing."
+        return 1
+    fi
+
+    local profile
+    for profile in "${BTRFS_PROFILES[@]}"; do
+        if [ -d "$sysfs_alloc_path/$type/$profile" ]; then
+            echo "$profile"
+            return
+        fi
+    done
+
+    return 1
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_data_profile() {
+    get_btrfs_profile "$1" "data"
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_metadata_profile() {
+    get_btrfs_profile "$1" "metadata"
+}
+
+# $1 - a profile name
+function is_btrfs_profile_valid() {
+    IsInArray "$1" "${BTRFS_PROFILES[@]}"
+}
+
 #Parse output from xfs_info for later use by mkfs.xfs
 
 function xfs_parse
