@@ -615,3 +615,4 @@ echo $required_mkfs_tools | grep -q 'mkfs.btrfs' && REQUIRED_PROGS+=( btrfs )
 
 Log "End saving filesystem layout"
 
+unset uuid label
