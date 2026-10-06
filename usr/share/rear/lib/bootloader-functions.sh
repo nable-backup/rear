@@ -1032,7 +1032,7 @@ function get_grub_editenv() {
     if test "$RECOVERY_MODE"; then
         GRUB_EDITENV_PATH="$(chroot "$TARGET_FS_ROOT" /bin/bash -c "$grub_editenv_path")"
     else
-        GRUB_EDITENV_PATH="$($grub_editenv_path)"
+        GRUB_EDITENV_PATH="$(eval "$grub_editenv_path")"
     fi
 
     if [ -z "$GRUB_EDITENV_PATH" ]; then

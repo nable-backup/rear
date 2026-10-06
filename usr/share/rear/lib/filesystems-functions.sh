@@ -42,6 +42,372 @@ function btrfs_subvolume_exists() {
     # Return awk's exit status
 }
 
+function get_btrfs_version() {
+    if ! has_binary btrfs; then
+        return 127
+    fi
+
+    btrfs version | grep -oP '(?<=btrfs-progs v)[\d.]+'
+}
+
+function get_available_btrfs_features() {
+    if ! has_binary mkfs.btrfs; then
+        return 127
+    fi
+
+    local buffer
+    if ! buffer="$(mkfs.btrfs -O list-all 2>&1)"; then
+        LogPrintError "Failed to get the list of available Btrfs filesystem features using mkfs.btrfs -O list-all."
+        return 1
+    fi
+
+    local features
+    # Filter out aliases such as 'bgt - block-group-tree alias'.
+    features="$(echo "$buffer" | awk 'NR>1 && !/alias$/ {print $1}')"
+
+    # We need to get runtime features using mkfs.btrfs -R list-all for versions
+    # between 5.7 and 6.2.2. Since 6.3, the -R option has been deprecated,
+    # and all features have been merged into the -O option.
+    local btrfs_version
+    if ! btrfs_version=$(get_btrfs_version); then
+        LogPrintError "Failed to determine the Btrfs version to check whether mkfs.btrfs -R list-all must be used."
+        return 1
+    fi
+
+    if printf '%s\n' "5.7" "$btrfs_version" "6.2.2" | sort -V -C; then
+        if ! buffer="$(mkfs.btrfs -R list-all 2>&1)"; then
+            LogPrintError "Failed to get the list of available Btrfs runtime features using mkfs.btrfs -R list-all."
+            return 1
+        fi
+        features+=$'\n'
+        features+="$(echo "$buffer" | awk 'NR>1 {print $1}')"
+    fi
+
+    echo "$features"
+}
+
+# $1 - a filesystem UUID
+function are_btrfs_qgroups_enabled() {
+    local uuid=$1
+    if [ -z "$uuid" ]; then
+        return 3
+    fi
+
+    local qgroups_dir="/sys/fs/btrfs/$uuid/qgroups"
+    if [ ! -f "${qgroups_dir}/enabled" ] || [ ! -f "${qgroups_dir}/mode" ]; then
+        return 1
+    fi
+
+    [ "$(cat "${qgroups_dir}/enabled")" = "1" ] && [ "$(cat "${qgroups_dir}/mode")" = "qgroup" ]
+}
+
+# $1 - a filesystem UUID
+function get_enabled_btrfs_features() {
+    local uuid=$1
+    if [ -z "$uuid" ]; then
+        return 3
+    fi
+
+    local features_dir="/sys/fs/btrfs/$uuid/features/"
+
+    local enabled_features
+    if ! enabled_features=$(find "$features_dir" -maxdepth 1 -type f -exec grep -qx "1" {} \; -printf "%f\n"); then
+        LogPrintError "Failed to get enabled Btrfs filesystem features from '$features_dir'."
+        return 1
+    fi
+    # Translate sysfs feature names to mkfs.btrfs -O flag names
+    enabled_features="${enabled_features//_/-}"
+    enabled_features="${enabled_features/mixed-groups/mixed-bg}"
+    enabled_features="${enabled_features/extended-iref/extref}"
+    enabled_features="${enabled_features/simple-quota/squota}"
+
+    # Check whether qgroups are enabled separately because there isn't a dedicated flag in /sys/fs/btrfs/UUID/features/
+    if are_btrfs_qgroups_enabled "$uuid"; then
+        enabled_features+=$'\n'"quota"
+    fi
+
+    # Filter out filesystem features that can't be passed to the mkfs.btrfs -O option 
+    local available_features
+    if ! available_features=$(get_available_btrfs_features); then
+        LogPrintError "Failed to get the list of available Btrfs features to filter out enabled features for the filesystem with UUID $uuid."
+        return 1
+    fi
+    enabled_features=$(comm -12 <(echo "$available_features" | sort) <(echo "$enabled_features" | sort))
+
+    enabled_features="${enabled_features//$'\n'/,}"
+
+    echo "$enabled_features"
+}
+
+# $1 - a comma-separated list of enabled Btrfs features
+function get_btrfs_features_option_for_mkfs() {
+    local features=$1
+
+    local available_features
+    if ! available_features=$(get_available_btrfs_features); then
+        LogPrintError "Failed to get the list of available Btrfs features to prepare the mkfs.btrfs -O option."
+        return 1
+    fi
+    available_features=$(echo "$available_features" | sort)
+
+    local unsupported_features
+    unsupported_features=$(comm -13 <(echo "$available_features") <(echo "$features" | tr ',' '\n' | sort))
+
+    local unsupported_feature
+    for unsupported_feature in $unsupported_features; do
+        LogPrintError "'$unsupported_feature' is an unsupported Btrfs filesystem feature in the version of mkfs.btrfs used by the rescue system and cannot be recovered."
+        # Remove unsupported features caused by using an older mkfs.btrfs on the rescue system than mkfs.btrfs used to create a filesystem.
+        features=$(echo "$features" | sed -E "s/(^|,)${unsupported_feature}(,|$)/\1/;s/,$//")
+    done
+
+    local disabled_features
+    disabled_features=$(comm -23 <(echo "$available_features") <(echo "$features" | tr ',' '\n' | sort))
+
+    local disabled_feature
+    for disabled_feature in $disabled_features; do
+        # Explicitly turn off disabled features to prevent them from being enabled by default.
+        features+=",^$disabled_feature"
+    done
+
+    local result=""
+
+    # For versions 5.7 through 6.2.2, runtime features must be controlled using the -R option.
+    local btrfs_version
+    if ! btrfs_version=$(get_btrfs_version); then
+        LogPrintError "Failed to determine the Btrfs version to check whether mkfs.btrfs -R list-all must be used."
+        return 1
+    fi
+    if printf '%s\n' "5.7" "$btrfs_version" "6.2.2" | sort -V -C; then
+        local runtime_features=""
+        for runtime_feature in free-space-tree quota; do
+            local found
+            if found=$(echo "$features" | grep -oP '(?<![a-z])\^?'"$runtime_feature"',?'); then
+                features="${features/$found/}"
+                runtime_features+=",${found%,}"
+            fi
+        done
+
+        if [ -n "$runtime_features" ]; then
+            result+=" -R ${runtime_features#,}"
+        fi
+
+        features=${features%,}
+    fi
+
+    if [ -n "$features" ]; then
+        result+=" -O ${features#,}"
+    fi
+
+    echo "$result"
+}
+
+# $1 - a filesystem UUID
+# $2 - an attribute name
+function get_btrfs_sysfs_attribute() {
+    local uuid=$1
+    local attr=$2
+
+    if [ -z "$uuid" ] || [ -z "$attr" ]; then
+        return 3
+    fi
+
+    local sysfs_attr_path="/sys/fs/btrfs/$uuid/$attr"
+    if [ ! -f "$sysfs_attr_path" ]; then
+        return 127
+    fi
+
+    cat "$sysfs_attr_path"
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_nodesize() {
+    local uuid=$1
+    local attr=nodesize
+    get_btrfs_sysfs_attribute "$uuid" "$attr"
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_sectorsize() {
+    local uuid=$1
+    local attr=sectorsize
+    get_btrfs_sysfs_attribute "$uuid" "$attr"
+}
+
+# $1 - nodesize
+function is_btrfs_nodesize_valid() {
+    local nodesize=$1
+    [[ "$nodesize" =~ ^[0-9]+$ ]] || return 1
+    # The nodesize must be not larger than 64KiB and a power of 2
+    (( nodesize > 0 && nodesize <= 65536 && (nodesize & (nodesize - 1)) == 0 ))
+}
+
+# $1 - sectorsize
+function is_btrfs_sectorsize_valid() {
+    local sectorsize=$1
+    [[ "$sectorsize" =~ ^[0-9]+$ ]] || return 1
+    # The sectorsize must be a power of 2
+    (( sectorsize > 0 && (sectorsize & (sectorsize - 1)) == 0 ))
+}
+
+# $1 - a comma-separated list of features
+function is_btrfs_list_of_features_valid() {
+    local list=$1
+    [ -z "$list" ] || [[ "$list" =~ ^[0-9a-z-]+(,[0-9a-z-]+)*$ ]]
+}
+
+# $1 - a filesystem UUID
+# $2 - a devid
+function is_btrfs_seeding_device() {
+    local uuid=$1
+    if [ -z "$uuid" ]; then
+        return 3
+    fi
+
+    local devid=$2
+    if [ -z "$devid" ]; then
+        return 3
+    fi
+
+    local writeable_path="/sys/fs/btrfs/$uuid/devinfo/$devid/writeable"
+    if [ ! -f "$writeable_path" ]; then
+        return 1
+    fi
+
+    [ "$(cat "$writeable_path")" = "0" ]
+}
+
+# $1 - a mountpoint
+function get_btrfs_devices() {
+    local mountpoint=$1
+    if [ -z "$mountpoint" ]; then
+        return 3
+    fi
+
+    local fs_info
+    if ! fs_info="$(btrfs filesystem show "$mountpoint")"; then
+        LogPrintError "Failed to get Btrfs filesystem structure for $mountpoint."
+        return 1
+    fi
+
+    # Example of 'btrfs filesystem show <mountpoint>' output:
+    # Label: 'sles16'  uuid: f8abe312-ae4f-4115-8a8e-3603bba79604
+    #         Total devices 2 FS bytes used 18.38GiB
+    #         devid    1 size 29.50GiB used 22.57GiB path /dev/sda2
+    #         devid    2 size 1.00GiB used 0.00B path /dev/sdb1
+
+    local uuid
+    uuid=$(echo "$fs_info" | awk '$(NF-1) == "uuid:" {print $NF; exit}')
+    if [ -z "$uuid" ]; then
+        LogPrintError "Couldn't find a filesystem UUID in the output of 'btrfs filesystem show $mountpoint'."
+        return 1
+    fi
+
+    local devices
+    local devid device_path
+    while read -r devid device_path; do
+        if is_btrfs_seeding_device "$uuid" "$devid"; then
+            LogPrintError "The Btrfs seeding device '$device_path' will become a regular read-write device at recovery time."
+        fi
+        devices+="$device_path,"
+    done < <(echo "$fs_info" | awk '$1 == "devid" && $(NF-1) == "path" {printf "%s %s\n", $2, $NF}')
+    devices=${devices%,}
+
+    if [ -z "$devices" ]; then
+        LogPrintError "Couldn't find any device paths in the output of 'btrfs filesystem show $mountpoint'."
+        return 1
+    fi
+
+    echo "$devices"
+}
+
+# $1 - a comma-separated list of device paths
+function is_btrfs_list_of_devices_valid() {
+    local paths
+    IFS=',' read -ra paths <<< "$1"
+
+    # An empty list is not valid
+    if [ ${#paths[@]} -eq 0 ]; then
+        return 1
+    fi
+
+    local path
+    for path in "${paths[@]}"; do
+        # Regex is created based on the https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_282
+        # It will fail if a non-portable character is used, e.g., '<' or '('.
+        if [[ ! "$path" =~ ^/dev/[[:alnum:]/._-]+$ ]]; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+# List of supported Btrfs profiles,
+# based on https://btrfs.readthedocs.io/en/latest/mkfs.btrfs.html#profiles
+BTRFS_PROFILES=(single dup raid0 raid1 raid1c3 raid1c4 raid10 raid5 raid6)
+
+# $1 - a filesystem UUID
+# $2 - a type. Valid values are data or metadata.
+function get_btrfs_profile() {
+    local uuid=$1
+    if [ -z "$uuid" ]; then
+        return 3
+    fi
+
+    local type=$2
+    case "$type" in
+        (data|metadata)
+            ;;
+        (*)
+            return 3
+            ;;
+    esac
+
+    local sysfs_alloc_path="/sys/fs/btrfs/$uuid/allocation"
+    if [ -d "$sysfs_alloc_path/$type" ]; then
+        :
+    elif [ -d "$sysfs_alloc_path/mixed" ]; then
+        # In mixed mode /sys/fs/btrfs/UUID/allocation/mixed/ should be used
+        type=mixed
+    else
+        LogPrintError "Failed to get Btrfs $type profile because '$sysfs_alloc_path/$type' is missing."
+        return 1
+    fi
+
+    local profile profiles=()
+    for profile in "${BTRFS_PROFILES[@]}"; do
+        if [ -d "$sysfs_alloc_path/$type/$profile" ]; then
+            profiles+=("$profile")
+        fi
+    done
+
+    if (( ${#profiles[@]} == 0 )); then
+        LogPrintError "No Btrfs profile directory found in '$sysfs_alloc_path/$type'."
+        return 1
+    elif (( ${#profiles[@]} > 1 )); then
+        local joined_profiles
+        joined_profiles=$(printf '%s, ' "${profiles[@]}")
+        joined_profiles=${joined_profiles%, }
+        LogPrintError "Multiple $type profiles detected: $joined_profiles. The '${profiles[0]}' profile will be used as the first one found."
+    fi
+
+    echo "${profiles[0]}"
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_data_profile() {
+    get_btrfs_profile "$1" "data"
+}
+
+# $1 - a filesystem UUID
+function get_btrfs_metadata_profile() {
+    get_btrfs_profile "$1" "metadata"
+}
+
+# $1 - a profile name
+function is_btrfs_profile_valid() {
+    IsInArray "$1" "${BTRFS_PROFILES[@]}"
+}
 
 #Parse output from xfs_info for later use by mkfs.xfs
 
