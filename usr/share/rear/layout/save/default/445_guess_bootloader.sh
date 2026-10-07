@@ -144,6 +144,21 @@ fi
 
 # No bootloader detected, but we are using UEFI - there is probably an EFI bootloader
 if is_true $USING_UEFI_BOOTLOADER ; then
+    # The LoaderInfo EFI variable was added in systemd version 240.
+    # In the systemd source code, char16_t is used to set the LoaderInfo value.
+    # Therefore, strings is used with the '-e l' option for 16-bit little-endian encoding.
+    loader_info_path="$SYSFS_DIR_EFI_VARS/LoaderInfo-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
+    # Check that loader_info_path is a file to skip cases where
+    # SYSFS_DIR_EFI_VARS is the deprecated /sys/firmware/efi/vars,
+    # since a different format can be used then.
+    if [ -f "$loader_info_path" ]; then
+        loader_info=$(strings -e l "$loader_info_path")
+        if echo "$loader_info" | grep -q systemd-boot; then
+            echo "SYSTEMD-BOOT" >"$bootloader_file"
+            return
+        fi
+    fi
+
     if is_grub2_installed ; then
         echo "GRUB2-EFI" >$bootloader_file
     elif test -f /sbin/elilo ; then
