@@ -1,0 +1,1 @@
+../../Linux-arm/330_set_efi_arch.sh
