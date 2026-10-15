@@ -237,19 +237,49 @@ fi
                 echo -n " uuid=$uuid label=$label"
                 ;;
             (btrfs)
-                # FIXME: Support for multi-disk BTRFS should be implemented sooner or later
-                # because it is the default layout for multi-disk Fedora Workstation installations.
-                # See: https://github.com/rear/rear/issues/2028
-                if grep -qE 'Total devices ([2-9]|[1-9][0-9]+) ' <(btrfs filesystem show "$mountpoint"); then
-                    Error "Mounpoint $mountpoint points to a BTRFS filesystem spanning multiple disk devices which is not yet supported. See: https://github.com/rear/rear/issues/2028"
-                fi
-
                 # Remember devices and mountpoints of the btrfs filesystems for the btrfs subvolume layout stuff below:
                 btrfs_devices_and_mountpoints+=" $device,$mountpoint"
                 uuid=$( btrfs filesystem show $device | grep -o 'uuid: .*' | cut -d ':' -f 2 | tr -d '[:space:]' )
                 label=$( btrfs filesystem show $device | grep -o 'Label: [^ ]*' | cut -d ':' -f 2 | tr -d '[:space:]' )
                 test "none" = "$label" && label=
                 echo -n " uuid=$uuid label=$label"
+
+                if nodesize=$(get_btrfs_nodesize "$uuid"); then
+                    echo -n " nodesize=$nodesize"
+                else
+                    LogPrintError "Failed to get Btrfs nodesize for $device"
+                fi
+
+                if sectorsize=$(get_btrfs_sectorsize "$uuid"); then
+                    echo -n " sectorsize=$sectorsize"
+                else
+                    LogPrintError "Failed to get Btrfs sectorsize for $device"
+                fi
+
+                if features=$(get_enabled_btrfs_features "$uuid" ); then
+                    echo -n " features=$features"
+                else
+                    LogPrintError "Failed to get enabled Btrfs features for $device"
+                fi
+
+                if devices=$(get_btrfs_devices "$mountpoint"); then
+                    echo -n " devices=$devices"
+                else
+                    LogPrintError "Failed to get a list of Btrfs device paths for $mountpoint"
+                fi
+
+                if dprofile=$(get_btrfs_data_profile "$uuid"); then
+                    echo -n " dprofile=$dprofile"
+                else
+                    LogPrintError "Failed to get Btrfs data profile for $device"
+                fi
+
+                if mprofile=$(get_btrfs_metadata_profile "$uuid"); then
+                    echo -n " mprofile=$mprofile"
+                else
+                    LogPrintError "Failed to get Btrfs metadata profile for $device"
+                fi
+
                 ;;
         esac
         # Remove parenthesis (from the traditional mount command output) from the list of options:
@@ -585,3 +615,4 @@ echo $required_mkfs_tools | grep -q 'mkfs.btrfs' && REQUIRED_PROGS+=( btrfs )
 
 Log "End saving filesystem layout"
 
+unset uuid label
