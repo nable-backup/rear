@@ -43,6 +43,11 @@ case $used_bootloader in
         # s390 - for rhel, ubuntu zipl config must be exist for restore.  sles > 11 does not use zipl directly
         CHECK_CONFIG_FILES+=( /[e]tc/zipl.conf )
         ;;
+    (SYSTEMD-BOOT)
+        # systemd-boot follows The Boot Loader Specification, so it reads entries
+        # from $ESP/loader/entries/*.conf, which are already added to CHECK_CONFIG_FILES
+        # in default.conf.
+        ;;
     (*)
         BugError "Unknown bootloader: $used_bootloader"
         ;;
