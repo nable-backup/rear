@@ -25,6 +25,10 @@ function WORKFLOW_recover () {
         test -f /etc/rear-release -a -w /etc/motd && echo -e '\nWelcome to Relax-and-Recover.\n' >/etc/motd
     fi
 
+    if is_cove; then
+        Source "$SHARE_DIR/prep/systemstate/$ARCH/330_set_efi_arch.sh"
+    fi
+
     SourceStage "setup"
 
     SourceStage "verify"

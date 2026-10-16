@@ -1,0 +1,1 @@
+../../Linux-arm/370_detect_secure_boot.sh

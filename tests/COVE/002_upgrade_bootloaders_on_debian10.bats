@@ -24,12 +24,27 @@ function setup() {
     }
     EFI_STUB=no
     UEFI_BOOTLOADER=/boot/efi/EFI/debian/shimx64.efi
+    EFI_ARCH="x64"
 }
 
-@test "Shim and GRUB are upgraded successfully" {
+@test "Shim and GRUB for x86_64 are upgraded successfully" {
     function upgrade_bootloaders() {
         return 0
     }
+
+    run source "$REAR_SHARE_DIR/finalize/COVE/Debian/620_upgrade_bootloaders.sh"
+    [ "$status" -eq 0 ]
+
+    local expected_output="Upgraded signed Shim and GRUB bootloaders for this system."
+    [ "$output" = "$expected_output" ]
+}
+
+@test "Shim and GRUB for aarch64 are upgraded successfully" {
+    function upgrade_bootloaders() {
+        return 0
+    }
+    UEFI_BOOTLOADER=/boot/efi/EFI/debian/shimaa64.efi
+    EFI_ARCH="aa64"
 
     run source "$REAR_SHARE_DIR/finalize/COVE/Debian/620_upgrade_bootloaders.sh"
     [ "$status" -eq 0 ]
@@ -98,6 +113,17 @@ function setup() {
 @test "Skip upgrading Shim and GRUB if the bootloader is not shim" {
     # shellcheck disable=SC2034
     UEFI_BOOTLOADER=/boot/efi/EFI/debian/grubx64.efi
+
+    run source "$REAR_SHARE_DIR/finalize/COVE/Debian/620_upgrade_bootloaders.sh"
+    [ "$status" -eq 0 ]
+
+    local expected_output=""
+    [ "$output" = "$expected_output" ]
+}
+
+@test "Skip upgrading Shim and GRUB if the bootloader is shimaa64.efi and machine is x86_64" {
+    # shellcheck disable=SC2034
+    UEFI_BOOTLOADER=/boot/efi/EFI/debian/shimaa64.efi
 
     run source "$REAR_SHARE_DIR/finalize/COVE/Debian/620_upgrade_bootloaders.sh"
     [ "$status" -eq 0 ]
