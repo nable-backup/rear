@@ -2,7 +2,7 @@
 # Upgrade Shim and GRUB bootloaders on Debian 10
 #
 # Shim and GRUB are upgraded because Shim from the rescue system
-# which is Debian12-based adds new entries to SBAT that leads to having
+# which is Debian13-based adds new entries to SBAT that leads to having
 # non-SecureBoot compatible device after BMR.
 #
 
@@ -22,7 +22,7 @@ if is_true "$EFI_STUB"; then
     return 0
 fi
 
-if [ "${UEFI_BOOTLOADER##*/}" != "shimx64.efi" ]; then
+if [ "${UEFI_BOOTLOADER##*/}" != "shim${EFI_ARCH}.efi" ]; then
     return 0
 fi
 
@@ -30,15 +30,15 @@ declare -F upgrade_bootloaders >/dev/null || function upgrade_bootloaders() {
     local target_bootloader_dir="${UEFI_BOOTLOADER%/*}"
     target_bootloader_dir="$TARGET_FS_ROOT$target_bootloader_dir"
 
-    local shim="$target_bootloader_dir/shimx64.efi"
-    local grub="$target_bootloader_dir/grubx64.efi"
+    local shim="$target_bootloader_dir/shim${EFI_ARCH}.efi"
+    local grub="$target_bootloader_dir/grub${EFI_ARCH}.efi"
 
     if [ ! -e "$shim" ] || [ ! -e "$grub" ]; then
         return 1
     fi
 
-    cp -b /usr/lib/shim/shimx64.efi.signed "$shim" || return 1
-    cp -b /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed "$grub" || \
+    cp -b "/usr/lib/shim/shim${EFI_ARCH}.efi.signed" "$shim" || return 1
+    cp -b "/usr/lib/grub/${GRUB2_IMAGE_FORMAT}-signed/grub${EFI_ARCH}.efi.signed" "$grub" || \
         { mv "$shim~" "$shim"; return 1; }
 
     rm "$shim~" "$grub~"
