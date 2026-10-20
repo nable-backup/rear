@@ -37,8 +37,8 @@ if [ "$WORKFLOW" = "mksystemstate" ] && is_true "$COVE_VERIFY_BINARIES" ; then
     # path is unknown by this time.
     if [ "$OS_VENDOR_VERSION" = "Debian/10" ] && is_true "$USING_UEFI_BOOTLOADER"; then
         local exclusions=(
-            /boot/efi/EFI/debian/grubx64.efi
-            /boot/efi/EFI/debian/shimx64.efi
+            "/boot/efi/EFI/debian/grub${EFI_ARCH}.efi"
+            "/boot/efi/EFI/debian/shim${EFI_ARCH}.efi"
         )
         local exclusion
         for exclusion in "${exclusions[@]}"; do

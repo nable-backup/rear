@@ -1,0 +1,1 @@
+../../../../prep/Linux-i386/330_set_efi_arch.sh
