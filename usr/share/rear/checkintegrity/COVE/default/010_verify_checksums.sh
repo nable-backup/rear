@@ -1,5 +1,14 @@
 # Check md5sum files
 
+function was_migration() {
+    local live_log_path="$COVE_INSTALL_DIR/var/log/rear/rear-live-log.log"
+    if [ ! -f "$live_log_path" ]; then
+        return 1
+    fi
+
+    grep -q "Migration mode is enabled" "$live_log_path"
+}
+
 function verify_checksums() {
     local md5sum_files=()
 
@@ -22,26 +31,57 @@ function verify_checksums() {
 
     LogUserOutput "Checking if certain restored files are consistent with the recreated system..."
 
+    local exclude_patched_files=0
+    if was_migration; then
+        LogUserOutput "Migration detected: files patched by ReaR will be excluded from the check."
+        exclude_patched_files=1
+    fi
+
     local all_pass=1
     for md5sum_file in "${md5sum_files[@]}" ; do
         local path="$VAR_DIR/layout/config/$md5sum_file"
 
-        # Skip when there are no checksums for this file
-        if ! test -s "$path"; then
+        if ! test -f "$path"; then
             LogUserOutput "Warning: '$path' not found. Skipped."
+            continue
+        elif ! test -s "$path"; then
+            LogUserOutput "Warning: no checksums in '$path'. Skipped."
             continue
         fi
 
         LogUserOutput "Verifying checksums from '$path'..."
 
+        if is_true "$exclude_patched_files"; then
+            local new_path="$path.modified"
+            cp "$path" "$new_path" || return
+            path="$new_path"
+
+            pushd / >/dev/null
+            local patched_file
+            for patched_file in $FILES_TO_PATCH_PATTERNS; do
+                if [ ! -f "$patched_file" ]; then
+                    continue
+                fi
+                patched_file=$( echo "$patched_file" | sed 's/[][\/$*.^]/\\&/g' )
+                sed -i "/^[[:xdigit:]]\{32\}[[:space:]]\+\/$patched_file\$/d" "$path"
+            done
+            popd >/dev/null || return
+        fi
+
         local md5sum_stdout
-        if ! md5sum_stdout="$( md5sum -c --quiet < "$path" )" ; then
+        if ! test -s "$path"; then
+            LogUserOutput "Warning: no checksums in '$path'. Skipped."
+        elif ! md5sum_stdout="$( md5sum -c --quiet < "$path" )" ; then
             LogUserOutput "Restored file(s) do not fully match the recreated system."
             LogUserOutput "$( sed -e 's/^/  /' <<< "$md5sum_stdout" )"
             LogUserOutput "Verification failed: checksums do not match for file(s) in '$md5sum_file'."
             all_pass=0
         else
             LogUserOutput "Verification passed: checksums match in '$md5sum_file'."
+        fi
+
+        if is_true "$exclude_patched_files"; then
+            rm -f "$path"
         fi
     done
 
@@ -53,4 +93,4 @@ function verify_checksums() {
     fi
 }
 
-verify_checksums
+verify_checksums || Error "Checksum verification failed."
