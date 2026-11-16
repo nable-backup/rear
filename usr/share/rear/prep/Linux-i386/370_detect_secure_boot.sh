@@ -18,7 +18,7 @@ if type -p mokutil ; then
         if grep -q "SecureBoot enabled" <<<"$secureboot_status" ; then
             # Check first for arch-specific and then generic shim file, nullglob will give us the first one found and we ignore the others.
             # shellcheck disable=SC2206
-            SECURE_BOOT_BOOTLOADER=( /boot/efi/EFI/*/shim$EFI_ARCH.efi /boot/efi/EFI/*/shim.efi )
+            SECURE_BOOT_BOOTLOADER=( /boot/efi/EFI/*/shim$EFI_ARCH.efi /boot/efi/EFI/*/shim.efi /[b]oot/efi/EFI/BOOT/boot$EFI_ARCH.efi )
             test -z "$SECURE_BOOT_BOOTLOADER" && BugError "Secure Boot is active, cannot auto-configure Secure Boot support:$LF" \
             "No shim.efi or shim$EFI_ARCH.efi found in /boot/efi/EFI/*/ directory.$LF$LF" \
             "As a workaround you can set SECURE_BOOT_BOOTLOADER to the correct shim.efi or shim$EFI_ARCH.efi file"
