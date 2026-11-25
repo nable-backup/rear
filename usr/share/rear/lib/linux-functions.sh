@@ -356,6 +356,14 @@ function get_lang () {
     return 1
 }
 
+# Prints the value of a field (e.g. VERSION_ID) from an os-release file.
+function get_os_release_field() {
+    local field=$1
+    local os_release_file=$2
+
+    grep "^$field=" "$os_release_file" 2>/dev/null | cut -d= -f2 | tr -d "\"'"
+}
+
 # Changes the SELinux mode from enforcing to permissive and prints a warning about the change
 function set_selinux_permissive() {
     local os=$1
